@@ -4,3 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+interface = { workspace = true, features = ["debug"] }
+ndarray.workspace = true
+ort.workspace = true
+base-util.workspace = true
+anyhow.workspace = true
+util.workspace = true
+maplit.workspace = true

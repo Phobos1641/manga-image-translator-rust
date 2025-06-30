@@ -529,4 +529,13 @@ impl ImageOp for RayonImageProcessor {
             channels: 3,
         }
     }
+
+    fn bgr_to_rgb(&self, mut img: RawImage) -> RawImage {
+        assert_eq!(img.data.len() % 3, 0);
+        img.data.par_chunks_mut(3).for_each(|chunk| {
+            chunk.swap(0, 2);
+        });
+
+        img
+    }
 }

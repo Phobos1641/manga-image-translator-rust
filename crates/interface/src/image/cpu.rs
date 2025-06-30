@@ -453,4 +453,12 @@ impl ImageOp for CpuImageProcessor {
             channels: 3,
         }
     }
+
+    fn bgr_to_rgb(&self, mut img: RawImage) -> RawImage {
+        assert_eq!(img.data.len() % 3, 0);
+        for chunk in img.data.chunks_mut(3) {
+            chunk.swap(0, 2);
+        }
+        img
+    }
 }

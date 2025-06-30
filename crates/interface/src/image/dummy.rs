@@ -144,4 +144,8 @@ impl ImageOp for DummyImageProcessor {
             channels: image.channels,
         }
     }
+
+    fn bgr_to_rgb(&self, img: super::RawImage) -> super::RawImage {
+        img
+    }
 }

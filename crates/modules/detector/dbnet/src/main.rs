@@ -5,6 +5,7 @@ use interface::{
     image::{CpuImageProcessor, ImageOp, RawImage},
     model::{CreateData, Model as _},
 };
+
 fn main() {
     env_logger::init();
     let mut data = DbNetDetector::new(CreateData::all(), false);

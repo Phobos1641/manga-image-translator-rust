@@ -814,6 +814,15 @@ dependencies = [
 [[package]]
 name = "ctd"
 version = "0.2.3"
+dependencies = [
+ "anyhow",
+ "base-util",
+ "interface",
+ "maplit",
+ "ndarray",
+ "ort",
+ "util",
+]
 
 [[package]]
 name = "cty"

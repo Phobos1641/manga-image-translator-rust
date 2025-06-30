@@ -14,7 +14,6 @@ use ndarray::{array, Array2, Array3, Array4, ArrayViewD, Axis};
 use opencv::core::BORDER_DEFAULT;
 use ort::{session::Session, value::Tensor};
 use util::{
-    dbnet::Batch,
     det_arrange::{det_rearrange_forward, shoud_rearrange},
     opencv::bilateral_filter,
 };
@@ -171,9 +170,10 @@ impl Detector for DbNetDetector {
         };
 
         let (mut boxes, mut scores) = det.call(
-            Batch { shape: vec![shape] },
             db.mapv(|v| v).into_dimensionality()?,
             false,
+            shape.1,
+            shape.0,
         )?;
 
         let boxes = boxes.remove(0);

@@ -208,6 +208,7 @@ pub trait ImageOp {
     ) -> Mask;
 
     fn remove_border_mask(&self, mask: Mask, width: DimType, height: DimType) -> Mask;
+    fn bgr_to_rgb(&self, img: RawImage) -> RawImage;
 }
 pub enum Interpolation {
     Nearest,
