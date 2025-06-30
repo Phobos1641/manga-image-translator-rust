@@ -1,4 +1,7 @@
-use base_util::{error::ProcessingError, onnx::new_session};
+use base_util::{
+    error::{PostProcessingError, ProcessingError},
+    onnx::new_session,
+};
 use interface::{
     detectors::{textlines::Quadrilateral, Detector, Mask},
     image::{ImageOp, RawImage},
@@ -89,7 +92,7 @@ impl Detector for CtdDetector {
             }
             false => {
                 let (img_in, ratio, dw, dh) =
-                    preprocess_img(img, img_processor, (1024, 1024), true, false);
+                    preprocess_img(img, img_processor, (1024, 1024), true, false)?;
                 let tensor = Tensor::from_array(img_in)?;
                 let outputs = session.run(ort::inputs!["input" => tensor])?;
 
@@ -122,8 +125,16 @@ impl Detector for CtdDetector {
         let (lines, scores) =
             SegDetectorRepresenter::default().call(lines_map, false, im_w as u16, im_h as u16)?;
         let box_thresh = 0.6;
-        let scores = scores.into_iter().flatten().next().unwrap();
-        let lines = lines.into_iter().flatten().next().unwrap();
+        let scores = scores
+            .into_iter()
+            .flatten()
+            .next()
+            .ok_or(PostProcessingError::Empty)?;
+        let lines = lines
+            .into_iter()
+            .flatten()
+            .next()
+            .ok_or(PostProcessingError::Empty)?;
         let qu = lines
             .outer_iter()
             .zip(scores)
@@ -172,21 +183,21 @@ fn preprocess_img(
     input_size: (u32, u32),
     bgr2rgb: bool,
     half: bool,
-) -> (Array4<f32>, (f64, f64), u32, u32) {
+) -> Result<(Array4<f32>, (f64, f64), u32, u32), ProcessingError> {
     if bgr2rgb {
         img = img_processor.bgr_to_rgb(img);
     }
     let (img_in, ratio, (dw, dh)) =
         letterbox(img, img_processor, input_size, false, false, true, 64);
-    let nd = img_in.to_ndarray().unwrap();
+    let nd = img_in.to_ndarray()?;
     let nd = nd.permuted_axes([2, 0, 1]);
     let nd = nd.slice(s![..;-1, .., ..]);
     let nd = nd.mapv(|v| v as f32 / 255.0);
-    let nd = stack(Axis(0), &[nd.view()]).unwrap();
+    let nd = stack(Axis(0), &[nd.view()])?;
     if half {
         todo!("convert to f16")
     }
-    (nd, ratio, dw, dh)
+    Ok((nd, ratio, dw, dh))
 }
 
 fn letterbox(
@@ -253,16 +264,13 @@ mod tests {
         let cpu_image_processor =
             Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
         data.load().expect("Failed to load data");
-        let mut img = RawImage::new("./imgs/01_1-optimized.png").expect("Failed to load image");
-        let out = data
-            .detect(
-                &img,
-                PreprocessorOptions::default(),
-                &[],
-                &cpu_image_processor,
-            )
-            .expect("failed to detect");
-        img.draw_bbox(&out.0).unwrap();
-        img.to_image().unwrap().save("bbox.png").unwrap();
+        let img = RawImage::new("./imgs/01_1-optimized.png").expect("Failed to load image");
+        data.detect(
+            &img,
+            PreprocessorOptions::default(),
+            &[],
+            &cpu_image_processor,
+        )
+        .expect("failed to detect");
     }
 }
