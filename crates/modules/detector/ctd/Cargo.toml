@@ -11,3 +11,4 @@ base-util.workspace = true
 anyhow.workspace = true
 util.workspace = true
 maplit.workspace = true
+roots.workspace = true

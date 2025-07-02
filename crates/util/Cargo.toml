@@ -9,6 +9,9 @@ opencv = { workspace = true, default-features = false, features = [
     "imgproc",
     "clang-runtime",
 ] }
+petgraph.workspace = true
+itertools.workspace = true
+
 anyhow.workspace = true
 interface.workspace = true
 fast_image_resize.workspace = true

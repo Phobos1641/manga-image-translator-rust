@@ -1,13 +1,78 @@
-use geo::{Area as _, ConvexHull as _, MultiPoint, Point, Polygon};
+use std::f64::{self, consts::PI};
 
-#[derive(Debug)]
+use geo::{Area as _, ConvexHull as _, Distance, Euclidean, MultiPoint, Point, Polygon};
+
+#[derive(Debug, Clone)]
 pub struct Quadrilateral {
     pts: [(i64, i64); 4],
     score: f64,
     vertical: bool,
 }
 
+pub struct BBox {
+    pub x: i64,
+    pub y: i64,
+    pub w: i64,
+    pub h: i64,
+}
+
+fn euclidean_norm(v: (i64, i64)) -> f64 {
+    ((v.0.pow(2) + v.1.pow(2)) as f64).sqrt()
+}
+
+fn max_coords(pts: &[(i64, i64); 4]) -> (i64, i64) {
+    pts.iter().fold((i64::MIN, i64::MIN), |acc, &(x, y)| {
+        (acc.0.max(x), acc.1.max(y))
+    })
+}
+
+fn min_coords(pts: &[(i64, i64); 4]) -> (i64, i64) {
+    pts.iter().fold((i64::MAX, i64::MAX), |acc, &(x, y)| {
+        (acc.0.min(x), acc.1.min(y))
+    })
+}
+
 impl Quadrilateral {
+    pub fn aabb(&self) -> BBox {
+        let max_coord = max_coords(&self.pts);
+        let min_coord = min_coords(&self.pts);
+        BBox {
+            x: min_coord.0,
+            y: min_coord.1,
+            w: max_coord.0 - min_coord.0,
+            h: max_coord.1 - min_coord.1,
+        }
+    }
+
+    pub fn xyxy(&self) -> (i64, i64, i64, i64) {
+        let aabb = self.aabb();
+        (aabb.x, aabb.y, aabb.x + aabb.w, aabb.y + aabb.h)
+    }
+
+    pub fn poly_distance(&self, other: &Self) -> f64 {
+        Euclidean.distance(&self.polygon(), &other.polygon())
+    }
+
+    pub fn is_approximate_axis_aligned(&self) -> bool {
+        let [l1a, l1b, l2a, l2b] = self.structure();
+        let v1 = ((l1b.0 - l1a.0), (l1b.1 - l1a.1));
+        let v2 = ((l2b.0 - l2a.0), (l2b.1 - l2a.1));
+        let e1 = (0.0, 1.0);
+        let e2 = (1.0, 0.0);
+        let norm1 = euclidean_norm(v1);
+        let unit_v1 = (v1.0 as f64 / norm1, v1.1 as f64 / norm1);
+        let norm2 = euclidean_norm(v2);
+        let unit_v2 = (v1.0 as f64 / norm2, v1.1 as f64 / norm2);
+        if dot(unit_v1, e1).abs() < 0.05
+            || dot(unit_v1, e2).abs() < 0.05
+            || dot(unit_v2, e1).abs() < 0.05
+            || dot(unit_v2, e2).abs() < 0.05
+        {
+            return true;
+        }
+        false
+    }
+
     pub fn pts(&self) -> &[(i64, i64); 4] {
         &self.pts
     }
@@ -67,6 +132,33 @@ impl Quadrilateral {
 
         horizontal_len / vertical_len
     }
+
+    pub fn font_size(&self) -> f64 {
+        let [l1a, l1b, l2a, l2b] = self.structure();
+        let v1 = (l1b.0 - l1a.0, l1b.1 - l1a.1);
+        let v2 = (l2b.0 - l2a.0, l2b.1 - l2a.1);
+        euclidean_norm(v1).min(euclidean_norm(v2))
+    }
+
+    fn cosangle(&self) -> f64 {
+        let [l1a, l1b, _, _] = self.structure();
+        let v1 = (l1b.0 - l1a.0, l1b.1 - l1a.1);
+        let norm = euclidean_norm(v1);
+        if norm == 0.0 {
+            return 1.0;
+        }
+        let unit_v1 = (v1.0 as f64 / norm, v1.1 as f64 / norm);
+        let e2 = (1.0, 0.0);
+
+        unit_v1.0 * e2.0 + unit_v1.1 * e2.1
+    }
+
+    pub fn angle(&self) -> f64 {
+        (self.cosangle().acos() + PI) % PI
+    }
+}
+fn dot(a: (f64, f64), b: (f64, f64)) -> f64 {
+    a.0 * b.0 + a.1 * b.1
 }
 
 /// Direction must be provided for sorting.

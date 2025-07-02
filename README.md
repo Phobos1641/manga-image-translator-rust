@@ -13,7 +13,7 @@
 - [x] detectors
   - [x] dbnet
   - [x] none
-  - [ ] ctd
+  - [x] ctd
   - [x] [paddle](https://github.com/mg-chao/paddle-ocr-rs)
   - [x] dbnet_convnext
   - [ ] python-module
@@ -51,7 +51,6 @@
 - [ ] cleanup code
 - [ ] more tests(100% test coverage)
 - [ ] more benchmarks
-- [ ] cleanup code
 - [ ] optimize code
 - [~] error handling
 - [ ] replace clipper2

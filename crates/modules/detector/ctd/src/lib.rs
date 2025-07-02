@@ -1,3 +1,5 @@
+mod refine_mask;
+
 use base_util::{
     error::{PostProcessingError, ProcessingError},
     onnx::new_session,
@@ -70,7 +72,7 @@ impl Detector for CtdDetector {
     fn infer(
         &mut self,
         img: RawImage,
-        options: &[u8],
+        _: &[u8],
         img_processor: &Box<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(
         Vec<interface::detectors::textlines::Quadrilateral>,
@@ -91,7 +93,7 @@ impl Detector for CtdDetector {
                 (lines_map, mask)
             }
             false => {
-                let (img_in, ratio, dw, dh) =
+                let (img_in, _, dw, dh) =
                     preprocess_img(img, img_processor, (1024, 1024), true, false)?;
                 let tensor = Tensor::from_array(img_in)?;
                 let outputs = session.run(ort::inputs!["input" => tensor])?;
