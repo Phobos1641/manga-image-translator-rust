@@ -24,10 +24,8 @@ pub enum Providers {
 
 pub fn all_providers() -> Vec<Providers> {
     vec![
-        #[cfg(any(target_os = "windows", target_os = "linux"))]
-        Providers::TensorRT,
-        #[cfg(any(target_os = "windows", target_os = "linux"))]
         Providers::CUDA,
+        Providers::TensorRT,
         #[cfg(target_os = "windows")]
         Providers::DirectML,
         #[cfg(target_os = "macos")]
