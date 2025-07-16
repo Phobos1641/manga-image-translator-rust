@@ -36,6 +36,22 @@ pub struct RawImage {
     pub channels: u8,
 }
 
+impl RawImage {
+    pub fn channels(&self) -> Vec<Vec<u8>> {
+        let count = self.width as usize * self.height as usize;
+        let mut r = Vec::with_capacity(count);
+        let mut g = Vec::with_capacity(count);
+        let mut b = Vec::with_capacity(count);
+
+        for chunk in self.data.chunks_exact(3) {
+            r.push(chunk[0]);
+            g.push(chunk[1]);
+            b.push(chunk[2]);
+        }
+        vec![r, g, b]
+    }
+}
+
 #[cfg(feature = "debug")]
 impl RawImage {
     pub fn draw_bbox(&mut self, textlines: &[Quadrilateral]) -> Result<(), &'static str> {
