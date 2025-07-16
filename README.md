@@ -1,9 +1,11 @@
-## External Dependencies
+## External Dependencies Build
 - openssl
 - [opencv](https://github.com/twistedfall/opencv-rust/blob/master/INSTALL.md)
 - libfontconfig-dev(linux only)
-- ~~onnxruntime(prebuild binaries for arm64 & x86_64 availble)~~
 
+## External Dependencies Runtime
+- opencv
+- onnxruntime exectuion providers
 
 # CPP Dependencies
 - ort [onnxruntime]
@@ -55,7 +57,7 @@
 - [ ] optimize code
 - [~] error handling
 - [ ] replace clipper2
-- [~] replace opencv
+- [ ] replace opencv
 - [x] ci
   - [x] cargo build
   - [x] gh publish

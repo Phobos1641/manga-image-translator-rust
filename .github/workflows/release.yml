@@ -56,15 +56,9 @@ jobs:
         if: matrix.platform.os != 'windows'
         uses: actions/setup-python@v5
         with:
-          python-version: |
-            3.9
-            3.10
-            3.11
-            3.12
-            3.13
+          python-version: 3.13
 
       - name: Setup Python
-        if: matrix.platform.os != 'windows'
         id: setup-python
         uses: ./.github/actions/setup-python
 
@@ -76,59 +70,20 @@ jobs:
           name: ${{ matrix.platform.name }}
 
       - name: Build wheels
-        if: matrix.platform.os != 'windows'
         uses: ./.github/actions/python-build
         with:
           name: ${{ matrix.platform.name }}
 
       - name: Upload wheel artifact
-        if: matrix.platform.os != 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.platform.name }}
           path: target/wheels/*.whl
           retention-days: 5
 
-  build-windows-python:
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-
-    runs-on: windows-latest
-    name: Build Windows Python Wheel with Python ${{ matrix.python-version }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Windows
-        uses: ./.github/actions/setup-windows
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-
-      - name: Setup Python
-        uses: ./.github/actions/setup-python
-        id: setup-python
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Build wheels
-        uses: ./.github/actions/python-build
-        with:
-          name: windows-x86_64-py${{ matrix.python-version }}
-
-      - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows-x86_64-py${{ matrix.python-version }}
-          path: target/wheels/*.whl
-          retention-days: 5
-
   release:
     needs:
       - build
-      - build-windows-python
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
