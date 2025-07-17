@@ -1,13 +1,12 @@
 use base_util::{
     error::{ModelLoadError, ProcessingError},
     onnx::new_session,
-    RawSerializable,
+    RawSerializable as _,
 };
-use interface::{
-    detectors::{textlines::Quadrilateral, DefaultOptions, Detector, Mask},
-    image::{DimType, ImageOp, Interpolation, RawImage},
-    model::{CreateData, Model, ModelSource},
-};
+
+use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
+use interface_image::{DimType, ImageOp, Interpolation, Mask, RawImage};
+use interface_model::{CreateData, Model, ModelSource};
 use log::debug;
 
 use ndarray::{array, Array2, Array3, Array4, ArrayViewD, Axis};
@@ -256,11 +255,9 @@ fn adjust_result_coordinates(
 mod tests {
     use crate::{DbNetDetector, DefaultOptions};
     use base_util::RawSerializable as _;
-    use interface::{
-        detectors::{Detector, PreprocessorOptions},
-        image::{CpuImageProcessor, ImageOp, RawImage},
-        model::{CreateData, Model as _},
-    };
+    use interface_detector::{Detector, PreprocessorOptions};
+    use interface_image::{CpuImageProcessor, ImageOp, RawImage};
+    use interface_model::{CreateData, Model as _};
 
     #[test]
     fn load_unload() {

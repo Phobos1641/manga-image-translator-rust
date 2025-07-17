@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::f64;
 
-use interface::detectors::textlines::Quadrilateral;
+use interface_detector::textlines::Quadrilateral;
 use itertools::Itertools;
 use petgraph::unionfind::UnionFind;
 use petgraph::visit::{EdgeRef as _, NodeIndexable as _};

@@ -4,9 +4,14 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-ort.workspace = true
+ort = { workspace = true, optional = true }
 ndarray.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
-opencv.workspace = true
+opencv = { workspace = true, optional = true }
 ureq.workspace = true
+
+[features]
+default = ["onnx", "opencv"]
+onnx = ["dep:ort"]
+opencv = ["dep:opencv"]

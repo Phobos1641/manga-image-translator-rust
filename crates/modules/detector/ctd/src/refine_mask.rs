@@ -1,8 +1,7 @@
 use imageproc::{distance_transform::Norm, image::GrayImage, morphology::erode};
-use interface::{
-    detectors::{textlines::Quadrilateral, Mask},
-    image::RawImage,
-};
+
+use interface_detector::textlines::Quadrilateral;
+use interface_image::{Mask, RawImage};
 use ndarray::{Array2, Zip};
 use roots::find_roots_quadratic;
 

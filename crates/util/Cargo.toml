@@ -11,9 +11,9 @@ opencv = { workspace = true, default-features = false, features = [
 ] }
 petgraph.workspace = true
 itertools.workspace = true
-
+interface-image.workspace = true
+interface-detector.workspace = true
 anyhow.workspace = true
-interface.workspace = true
 fast_image_resize.workspace = true
 clipper2c-sys = "0.1.5"
 log.workspace = true

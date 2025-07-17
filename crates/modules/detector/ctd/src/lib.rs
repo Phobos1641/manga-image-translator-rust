@@ -4,11 +4,10 @@ use base_util::{
     error::{PostProcessingError, ProcessingError},
     onnx::new_session,
 };
-use interface::{
-    detectors::{textlines::Quadrilateral, Detector, Mask},
-    image::{ImageOp, RawImage},
-    model::{CreateData, Model, ModelSource},
-};
+
+use interface_detector::{textlines::Quadrilateral, Detector};
+use interface_image::{ImageOp, Interpolation, Mask, RawImage};
+use interface_model::{CreateData, Model, ModelSource};
 use maplit::hashmap;
 use ndarray::{s, stack, Array2, Array4, ArrayViewD, Axis};
 use ort::{session::Session, value::Tensor};
@@ -37,7 +36,7 @@ impl Model for CtdDetector {
         "detector"
     }
 
-    fn models(&self) -> std::collections::HashMap<&'static str, interface::model::ModelSource> {
+    fn models(&self) -> std::collections::HashMap<&'static str, ModelSource> {
         hashmap! {
             "model" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ctd-v1.0.0/model.onnx", hash: "c921d44fea30913a1689dcb4d28faef664dfd0c9f895146d27342e52b823ec0c" }
         }
@@ -74,10 +73,7 @@ impl Detector for CtdDetector {
         img: RawImage,
         _: &[u8],
         img_processor: &Box<dyn ImageOp + Send + Sync>,
-    ) -> anyhow::Result<(
-        Vec<interface::detectors::textlines::Quadrilateral>,
-        interface::detectors::Mask,
-    )> {
+    ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let (im_w, im_h) = (img.width, img.height);
         let session = match &mut self.model {
             None => {
@@ -151,12 +147,8 @@ impl Detector for CtdDetector {
                 )
             })
             .collect::<Vec<_>>();
-        let mask = img_processor.resize_mask(
-            mask,
-            im_w as usize,
-            im_h as usize,
-            interface::image::Interpolation::Bilinear,
-        );
+        let mask =
+            img_processor.resize_mask(mask, im_w as usize, im_h as usize, Interpolation::Bilinear);
         //TODO:
         //mask_refined = refine_mask(image, mask, textlines, refine_mode=None)
 
@@ -234,7 +226,7 @@ fn letterbox(
             im,
             new_unpad.0 as u16,
             new_unpad.1 as u16,
-            interface::image::Interpolation::Bilinear,
+            Interpolation::Bilinear,
         );
     }
     let im_height = im.height;
@@ -245,11 +237,10 @@ fn letterbox(
 
 #[cfg(test)]
 mod tests {
-    use interface::{
-        detectors::{Detector, PreprocessorOptions},
-        image::{CpuImageProcessor, ImageOp, RawImage},
-        model::{CreateData, Model as _},
-    };
+
+    use interface_detector::{Detector as _, PreprocessorOptions};
+    use interface_image::{CpuImageProcessor, ImageOp, RawImage};
+    use interface_model::{CreateData, Model as _};
 
     use crate::CtdDetector;
 

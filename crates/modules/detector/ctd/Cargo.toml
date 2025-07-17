@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-interface = { workspace = true, features = ["debug"] }
+interface-model.workspace = true
+interface-detector.workspace = true
+interface-image.workspace = true
 ndarray.workspace = true
 ort.workspace = true
 base-util.workspace = true
