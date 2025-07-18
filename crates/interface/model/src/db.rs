@@ -224,6 +224,9 @@ fn download_and_extract(url: &str, file_path: &Path, folder: bool) -> Result<(),
         debug!("Extraction complete.");
     } else {
         debug!("Downloaded file is not a .tar.gz archive, saving as normal file.");
+        temp_file.rewind()?;
+        let mut output = File::create(file_path)?;
+        std::io::copy(&mut temp_file, &mut output)?;
     }
 
     Ok(())
