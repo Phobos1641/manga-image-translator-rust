@@ -107,7 +107,7 @@ jobs:
         with:
           files: |
             release/manga-image-translator-*
-            wheels-*.whl
+            rusty_manga_image_translator-*.whl
           draft: false
           prerelease: false
         env:
