@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.10"
+version = "0.3.0"
 edition = "2021"
 
 [workspace.dependencies]
@@ -22,7 +22,7 @@ anyhow = "1.0.98"
 util = { path = "crates/util" }
 opencv = { version = "0.95", default-features = false }
 fast_image_resize = "5.2"
-tokio = "1.46.1"
+tokio = "1.47.0"
 env_logger = "0.11.8"
 ort = { version = "2.0.0-rc.10" }
 ndarray = "0.16.1"
@@ -47,7 +47,7 @@ show-image = "0.13"
 thiserror = "2.0.12"
 parking_lot = "0.12.4"
 once_cell = "1.21.3"
-rand = "0.9.1"
+rand = "0.9"
 roots = "0.0.8"
 petgraph = "0.8.2"
 itertools = "0.14.0"
