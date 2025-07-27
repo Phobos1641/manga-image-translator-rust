@@ -1,6 +1,6 @@
 [project]
 name = "rusty-manga-image-translator"
-version = "0.2.3"
+version = "0.2.10"
 description = "Rust implementation of manga-image-translator with py-bindings"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -11,7 +11,15 @@ classifiers = [
     "Programming Language :: Rust",
     "Operating System :: OS Independent",
 ]
-homepage = "https://github.com/frederik-uni/manga-image-translator-rust"
+dependencies = [
+    "numpy>2",
+]
+
+[project.urls]
+Homepage = "https://github.com/frederik-uni/manga-image-translator-rust"
+Repository = "https://github.com/frederik-uni/manga-image-translator-rust"
+Issues = "https://github.com/frederik-uni/manga-image-translator-rust/issues"
+Changelog = "https://github.com/frederik-uni/manga-image-translator-rust/blob/master/CHANGELOG.md"
 
 [tool.maturin]
 module-name = "rusty_manga_image_translator"
