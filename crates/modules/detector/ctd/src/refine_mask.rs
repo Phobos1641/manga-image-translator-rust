@@ -1,3 +1,4 @@
+use base_util::error::PostProcessingError;
 use imageproc::{
     distance_transform::Norm,
     image::{DynamicImage, GenericImageView, GrayImage},
@@ -22,11 +23,8 @@ pub fn refine_mask(
     mask: Mask,
     blk_list: Vec<Quadrilateral>,
     refinemask_inpaint: bool,
-) -> Mask {
-    let mut mask_refined = Mat::zeros(mask.height as i32, mask.width as i32, CV_8U)
-        .unwrap()
-        .to_mat()
-        .unwrap();
+) -> Result<Mask, PostProcessingError> {
+    let mut mask_refined = Mat::zeros(mask.height as i32, mask.width as i32, CV_8U)?.to_mat()?;
     for blk in blk_list {
         let (bx1, by1, bx2, by2) = enlarge_window(blk.xyxy(), img.width, img.height, 2.5, 1.0);
         let im = DynamicImage::from(
@@ -43,21 +41,21 @@ pub fn refine_mask(
         let im_gray = Mask::from(im_gray).as_nd();
         let msk = mask.as_nd();
         let msk = msk.slice(s![by1 as usize..by2 as usize, bx1 as usize..bx2 as usize]);
-        let mut mask_list = get_topk_masklist(im_gray, &msk);
-        mask_list.extend(get_otsuthresh_masklist(&RawImage::from(im), msk));
-        let mask_merged = merge_mask_list(mask_list, &Mask::from(msk), 30, refinemask_inpaint);
+        let mut mask_list = get_topk_masklist(im_gray, &msk)?;
+        mask_list.extend(get_otsuthresh_masklist(&RawImage::from(im), msk)?);
+        let mask_merged = merge_mask_list(mask_list, &Mask::from(msk), 30, refinemask_inpaint)?;
         let roi_rect = Rect::new(
             bx1 as i32,
             by1 as i32,
             bx2 as i32 - bx1 as i32,
             by2 as i32 - by1 as i32,
         );
-        let mut roi = Mat::roi_mut(&mut mask_refined, roi_rect).unwrap();
+        let mut roi = Mat::roi_mut(&mut mask_refined, roi_rect)?;
         let roy2 = roi.clone_pointee();
 
-        bitwise_or(&roy2, &mask_merged, &mut roi, &opencv::core::no_array()).unwrap();
+        bitwise_or(&roy2, &mask_merged, &mut roi, &opencv::core::no_array())?;
     }
-    Mask::from(mask_refined)
+    Ok(Mask::from(mask_refined))
 }
 
 fn ndarray_to_gray_image(arr: &ArrayView2<u8>) -> GrayImage {
@@ -68,27 +66,36 @@ fn ndarray_to_gray_image(arr: &ArrayView2<u8>) -> GrayImage {
     GrayImage::from_raw(arr.dim().1 as u32, arr.dim().0 as u32, data).unwrap()
 }
 
-fn gray_image_to_ndarray(img: &GrayImage) -> Array2<u8> {
+fn gray_image_to_ndarray(img: &GrayImage) -> Result<Array2<u8>, PostProcessingError> {
     let (width, height) = img.dimensions();
     let data = img.as_raw();
-    Array2::from_shape_vec((height as usize, width as usize), data.clone()).unwrap()
+    Ok(Array2::from_shape_vec(
+        (height as usize, width as usize),
+        data.clone(),
+    )?)
 }
 
-fn extract_candidates(im_grey: &Array2<u8>, mask: &ArrayView2<u8>) -> Vec<u8> {
+fn extract_candidates(
+    im_grey: &Array2<u8>,
+    mask: &ArrayView2<u8>,
+) -> Result<Vec<u8>, PostProcessingError> {
     let mask_img = ndarray_to_gray_image(mask);
     let eroded_img = erode(&mask_img, Norm::LInf, 1);
-    let eroded_mask = gray_image_to_ndarray(&eroded_img);
+    let eroded_mask = gray_image_to_ndarray(&eroded_img)?;
     let mut result = Vec::new();
     for ((y, x), &val) in eroded_mask.indexed_iter() {
         if val > 127 {
             result.push(im_grey[(y, x)]);
         }
     }
-    result
+    Ok(result)
 }
 
-fn get_topk_masklist(im_grey: Array2<u8>, ped_mask: &ArrayView2<u8>) -> Vec<(Array2<u8>, u64)> {
-    let candidate_grey_px = extract_candidates(&im_grey, &ped_mask);
+fn get_topk_masklist(
+    im_grey: Array2<u8>,
+    ped_mask: &ArrayView2<u8>,
+) -> Result<Vec<(Array2<u8>, u64)>, PostProcessingError> {
+    let candidate_grey_px = extract_candidates(&im_grey, &ped_mask)?;
     let (bin, his) = histogram(&candidate_grey_px, 255);
     let topk_color = get_topk_color(his, bin, 3, 10, 0.001);
     let color_range = 30;
@@ -98,19 +105,18 @@ fn get_topk_masklist(im_grey: Array2<u8>, ped_mask: &ArrayView2<u8>) -> Vec<(Arr
             let c_top = 255.min(color + color_range);
             let c_bottom = c_top - 2 * color_range;
             let mut threshed = Mat::default();
-            let im_grey = Mask::from(&im_grey).as_opencv_mat().unwrap();
+            let im_grey = Mask::from(&im_grey).as_opencv_mat()?;
 
             in_range(
                 &im_grey,
                 &Scalar::all(c_bottom as f64),
                 &Scalar::all(c_top as f64),
                 &mut threshed,
-            )
-            .unwrap();
+            )?;
             let threshed = Mask::from(threshed).as_nd();
 
             let (threshed, xor_sum) = minxor_thresh(threshed, &ped_mask, false);
-            (threshed, xor_sum)
+            Ok((threshed, xor_sum))
         })
         .collect()
 }
@@ -178,23 +184,20 @@ fn merge_mask_list_(
     label_index: i32,
     mask_merged: &mut Mat,
     pred_mask: &Mat,
-) {
+) -> Result<(), PostProcessingError> {
     let (x1, y1, x2, y2) = (x, y, x + w, y + h);
     let width = x2 - x1;
     let height = y2 - y1;
     let roi_rect = Rect::new(x1, y1, width, height);
-    let label_local = Mat::roi(labels, roi_rect).unwrap();
-    let size = label_local.size().unwrap();
-    let mut tmp_merged = Mat::zeros(size.height, size.width, CV_8U)
-        .unwrap()
-        .to_mat()
-        .unwrap();
+    let label_local = Mat::roi(labels, roi_rect)?;
+    let size = label_local.size()?;
+    let mut tmp_merged = Mat::zeros(size.height, size.width, CV_8U)?.to_mat()?;
 
     for y in 0..size.height {
         for x in 0..size.width {
-            let val = *label_local.at_2d::<u16>(y, x).unwrap() as i32;
+            let val = *label_local.at_2d::<u16>(y, x)? as i32;
             if val == label_index {
-                *tmp_merged.at_2d_mut::<u8>(y, x).unwrap() = 255;
+                *tmp_merged.at_2d_mut::<u8>(y, x)? = 255;
             }
         }
     }
@@ -202,8 +205,8 @@ fn merge_mask_list_(
     let height = y2 - y1;
     let roi_rect = Rect::new(x1, y1, width, height);
 
-    let roi_mask_merged = Mat::roi(mask_merged, roi_rect).unwrap();
-    let roi_pred_mask = Mat::roi(pred_mask, roi_rect).unwrap();
+    let roi_mask_merged = Mat::roi(mask_merged, roi_rect)?;
+    let roi_pred_mask = Mat::roi(pred_mask, roi_rect)?;
     let mut roi_tmp_merged = tmp_merged.clone();
 
     bitwise_or(
@@ -211,8 +214,7 @@ fn merge_mask_list_(
         &tmp_merged,
         &mut roi_tmp_merged,
         &no_array(),
-    )
-    .unwrap();
+    )?;
 
     let mut xor_merged = Mat::default();
     bitwise_xor(
@@ -220,9 +222,8 @@ fn merge_mask_list_(
         &roi_pred_mask,
         &mut xor_merged,
         &no_array(),
-    )
-    .unwrap();
-    let xor_merged_sum = sum_elems(&xor_merged).unwrap().0[0] as i32;
+    )?;
+    let xor_merged_sum = sum_elems(&xor_merged)?.0[0] as i32;
 
     let mut xor_origin = Mat::default();
     bitwise_xor(
@@ -230,19 +231,19 @@ fn merge_mask_list_(
         &roi_pred_mask,
         &mut xor_origin,
         &no_array(),
-    )
-    .unwrap();
-    let xor_origin_sum = sum_elems(&xor_origin).unwrap().0[0] as i32;
+    )?;
+    let xor_origin_sum = sum_elems(&xor_origin)?.0[0] as i32;
 
     if xor_merged_sum < xor_origin_sum {
         let width = x2 - x1;
         let height = y2 - y1;
         let roi_rect = Rect::new(x1, y1, width, height);
 
-        let mut roi_mask_merged = Mat::roi_mut(mask_merged, roi_rect).unwrap();
+        let mut roi_mask_merged = Mat::roi_mut(mask_merged, roi_rect)?;
 
-        tmp_merged.copy_to(&mut roi_mask_merged).unwrap();
+        tmp_merged.copy_to(&mut roi_mask_merged)?;
     }
+    Ok(())
 }
 
 fn get_area_threshold(stats: &Mat) -> opencv::Result<i32> {
@@ -270,7 +271,7 @@ fn merge_mask_list(
     pred_mask: &Mask,
     pred_thresh: u32,
     refinemask_inpaint: bool,
-) -> Mat {
+) -> Result<Mat, PostProcessingError> {
     mask_list.sort_by_key(|v| v.1);
 
     let pred_mask = if pred_thresh > 0 {
@@ -279,13 +280,10 @@ fn merge_mask_list(
             MORPH_ELLIPSE,
             Size::new(2 * e_size + 1, 2 * e_size + 1),
             Point::new(e_size, e_size),
-        )
-        .unwrap();
-        let pred_mask = pred_mask.as_opencv_mat().unwrap();
-        let mut pred_mask_out = Mat::zeros(pred_mask.rows(), pred_mask.cols(), pred_mask.typ())
-            .unwrap()
-            .to_mat()
-            .unwrap();
+        )?;
+        let pred_mask = pred_mask.as_opencv_mat()?;
+        let mut pred_mask_out =
+            Mat::zeros(pred_mask.rows(), pred_mask.cols(), pred_mask.typ())?.to_mat()?;
         opencv::imgproc::erode(
             &pred_mask,
             &mut pred_mask_out,
@@ -294,35 +292,31 @@ fn merge_mask_list(
             1,
             BORDER_CONSTANT,
             Scalar::all(0.0),
-        )
-        .unwrap();
-        let mut pred_mask = Mat::zeros(pred_mask.rows(), pred_mask.cols(), pred_mask.typ())
-            .unwrap()
-            .to_mat()
-            .unwrap();
+        )?;
+        let mut pred_mask =
+            Mat::zeros(pred_mask.rows(), pred_mask.cols(), pred_mask.typ())?.to_mat()?;
         opencv::imgproc::threshold(
             &pred_mask_out,
             &mut pred_mask,
             60 as f64,
             255 as f64,
             THRESH_BINARY,
-        )
-        .unwrap();
+        )?;
         pred_mask
     } else {
         todo!()
     };
 
-    let size = pred_mask.size().unwrap();
+    let size = pred_mask.size()?;
     let typ = pred_mask.typ();
-    let mut mask_merged = Mat::zeros_size(size, typ).unwrap().to_mat().unwrap();
+    let mut mask_merged = Mat::zeros_size(size, typ)?.to_mat()?;
 
     let connectivity = 8;
     for (candidate_mask, _) in mask_list.into_iter() {
         let mut labels = Mat::default();
         let mut stats = Mat::default();
         let mut centroids = Mat::default();
-        let candidate_mask = Mask::from(candidate_mask).as_opencv_mat().unwrap();
+        let candidate_mask = Mask::from(candidate_mask).as_opencv_mat()?;
         let num_labels = opencv::imgproc::connected_components_with_stats(
             &candidate_mask,
             &mut labels,
@@ -330,11 +324,10 @@ fn merge_mask_list(
             &mut centroids,
             connectivity,
             CV_16U,
-        )
-        .unwrap();
+        )?;
         for label_index in 0..num_labels {
             if label_index != 0 {
-                let stat = stats.at_row::<i32>(label_index).unwrap();
+                let stat = stats.at_row::<i32>(label_index)?;
                 let (w, h) = (stat[2], stat[3]);
                 if w * h < 3 {
                     continue;
@@ -357,8 +350,7 @@ fn merge_mask_list(
                 MORPH_RECT,
                 Size::new(5, 5),
                 opencv::core::Point::new(-1, -1),
-            )
-            .unwrap();
+            )?;
             let mut dst = Mat::default();
             opencv::imgproc::dilate(
                 &mask_merged,
@@ -368,8 +360,7 @@ fn merge_mask_list(
                 1,
                 opencv::core::BORDER_CONSTANT,
                 Scalar::default(),
-            )
-            .unwrap();
+            )?;
             mask_merged = dst;
         }
         let mut labels = Mat::default();
@@ -384,8 +375,7 @@ fn merge_mask_list(
             &mut inverted,
             &opencv::core::no_array(),
             -1,
-        )
-        .unwrap();
+        )?;
         let num_labels = opencv::imgproc::connected_components_with_stats(
             &inverted,
             &mut labels,
@@ -393,11 +383,10 @@ fn merge_mask_list(
             &mut centroids,
             connectivity,
             CV_16U,
-        )
-        .unwrap();
-        let area_thresh = get_area_threshold(&stats).unwrap();
+        )?;
+        let area_thresh = get_area_threshold(&stats)?;
         for label_index in 0..num_labels {
-            let stat = stats.at_row::<i32>(label_index).unwrap();
+            let stat = stats.at_row::<i32>(label_index)?;
             let (x, y, w, h, area) = (stat[0], stat[1], stat[2], stat[3], stat[4]);
             if area < area_thresh {
                 merge_mask_list_(
@@ -413,26 +402,28 @@ fn merge_mask_list(
             }
         }
     }
-    mask_merged
+    Ok(mask_merged)
 }
 
-fn get_otsuthresh_masklist(img: &RawImage, pred_mask: ArrayView2<u8>) -> Vec<(Array2<u8>, u64)> {
+fn get_otsuthresh_masklist(
+    img: &RawImage,
+    pred_mask: ArrayView2<u8>,
+) -> Result<Vec<(Array2<u8>, u64)>, PostProcessingError> {
     let channels = img.channels();
     let h = img.height;
     let mask_list = channels
         .into_iter()
         .map(|c| {
             let mut threshed = Mat::default();
-            let c = Mat::from_slice(&c).unwrap();
-            let c = c.reshape(1, h as i32).unwrap();
-            opencv::imgproc::threshold(&c, &mut threshed, 1.0, 255.0, THRESH_OTSU | THRESH_BINARY)
-                .unwrap();
+            let c = Mat::from_slice(&c)?;
+            let c = c.reshape(1, h as i32)?;
+            opencv::imgproc::threshold(&c, &mut threshed, 1.0, 255.0, THRESH_OTSU | THRESH_BINARY)?;
             let threshed = Mask::from(threshed).as_nd();
             let (threshed, xor_sum) = minxor_thresh(threshed, &pred_mask, false);
-            (threshed, xor_sum)
+            Ok((threshed, xor_sum))
         })
-        .collect::<Vec<_>>();
-    vec![mask_list.into_iter().min_by_key(|v| v.1).unwrap()]
+        .collect::<Result<Vec<_>, PostProcessingError>>()?;
+    Ok(vec![mask_list.into_iter().min_by_key(|v| v.1).unwrap()])
 }
 
 fn minxor_thresh(threshed: Array2<u8>, mask: &ArrayView2<u8>, dilate: bool) -> (Array2<u8>, u64) {

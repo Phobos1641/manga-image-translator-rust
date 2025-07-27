@@ -57,7 +57,6 @@ impl Model for PaddleDetector {
     fn load(&mut self) -> Result<(), ModelLoadError> {
         let mut db_net = DbNet::new();
 
-        let p = root_path().join("models/detector/paddle/det.onnx");
         let url = self.models();
         let url = url.get("det").unwrap();
         let model = self

@@ -150,11 +150,6 @@ impl Detector for CtdDetector {
             .collect::<Vec<_>>();
         let mask =
             img_processor.resize_mask(mask, im_w as usize, im_h as usize, Interpolation::Bilinear);
-        RawImage::from(mask.clone())
-            .to_image()
-            .unwrap()
-            .save("./maskb.png")
-            .unwrap();
         let mask_refined = refine_mask::refine_mask(img, mask, qu.clone(), false);
 
         Ok((qu, mask_refined))
@@ -264,7 +259,7 @@ mod tests {
         data.load().expect("Failed to load data");
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let (_, mask) = data
+        let (_, _) = data
             .detect(
                 &img,
                 PreprocessorOptions::default(),
@@ -272,10 +267,5 @@ mod tests {
                 &cpu_image_processor,
             )
             .expect("failed to detect");
-        RawImage::from(mask)
-            .to_image()
-            .unwrap()
-            .save("./mask.png")
-            .unwrap();
     }
 }
