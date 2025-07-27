@@ -1,4 +1,4 @@
-use image::{DynamicImage, GrayImage};
+use image::{DynamicImage, GrayImage, SubImage};
 use ndarray::{Array2, Array3, ArrayView2};
 use opencv::core::{Mat, MatTraitConst as _};
 

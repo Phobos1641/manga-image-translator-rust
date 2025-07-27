@@ -3,7 +3,6 @@ use std::f32;
 use base_util::{
     error::ModelLoadError,
     onnx::{all_providers, new_session_},
-    project::root_path,
     RawSerializable,
 };
 use geo::{MinimumRotatedRect, Point};
@@ -57,13 +56,8 @@ impl Model for PaddleDetector {
     fn load(&mut self) -> Result<(), ModelLoadError> {
         let mut db_net = DbNet::new();
 
-        let url = self.models();
-        let url = url.get("det").unwrap();
         let model = self
-            .db
-            .mode_db
-            .get(self.kind(), self.name(), "det.onnx", url.url, url.hash)
-            .unwrap()
+            .download_model("det", "det.onnx")?
             .to_string_lossy()
             .to_string();
         let err = db_net.init_model(&model, 0, Some(|v| ses_builder(v)));
@@ -260,7 +254,7 @@ fn fill_polygon(mask: &mut [u8], width: usize, height: usize, poly: &[(i64, i64)
 
 #[cfg(test)]
 mod tests {
-    use crate::{PaddleDetector, PaddleOptions};
+    use crate::PaddleDetector;
     use base_util::RawSerializable as _;
     use interface_detector::{DefaultOptions, Detector as _, PreprocessorOptions};
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};

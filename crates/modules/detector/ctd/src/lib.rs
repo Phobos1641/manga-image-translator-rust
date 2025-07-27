@@ -51,16 +51,8 @@ impl Model for CtdDetector {
     }
 
     fn load(&mut self) -> Result<(), base_util::error::ModelLoadError> {
-        let models = self.models();
-        let models = models.get("model").expect("Modelname was registered");
         self.model = Some(new_session(
-            self.db.mode_db.get(
-                self.kind(),
-                self.name(),
-                "model.onnx",
-                models.url,
-                models.hash,
-            )?,
+            self.download_model("model", "model.onnx")?,
             self.db.providers.clone(),
         )?);
         Ok(())
@@ -150,7 +142,7 @@ impl Detector for CtdDetector {
             .collect::<Vec<_>>();
         let mask =
             img_processor.resize_mask(mask, im_w as usize, im_h as usize, Interpolation::Bilinear);
-        let mask_refined = refine_mask::refine_mask(img, mask, qu.clone(), false);
+        let mask_refined = refine_mask::refine_mask(img, mask, qu.clone(), false)?;
 
         Ok((qu, mask_refined))
     }
@@ -259,7 +251,7 @@ mod tests {
         data.load().expect("Failed to load data");
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let (_, _) = data
+        let (v, _) = data
             .detect(
                 &img,
                 PreprocessorOptions::default(),
@@ -267,5 +259,6 @@ mod tests {
                 &cpu_image_processor,
             )
             .expect("failed to detect");
+        println!("{:?}", v);
     }
 }

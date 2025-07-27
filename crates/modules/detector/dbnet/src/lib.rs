@@ -56,16 +56,8 @@ impl Model for DbNetDetector {
     }
 
     fn load(&mut self) -> Result<(), ModelLoadError> {
-        let models = self.models();
-        let models = models.get("model").expect("Modelname was registered");
         self.model = Some(new_session(
-            self.db.mode_db.get(
-                self.kind(),
-                self.name(),
-                "model.onnx",
-                models.url,
-                models.hash,
-            )?,
+            self.download_model("model", "model.onnx")?,
             self.db.providers.clone(),
         )?);
         Ok(())

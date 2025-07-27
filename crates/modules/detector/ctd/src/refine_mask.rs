@@ -103,7 +103,7 @@ fn get_topk_masklist(
         .into_iter()
         .map(|color| {
             let c_top = 255.min(color + color_range);
-            let c_bottom = c_top - 2 * color_range;
+            let c_bottom = c_top as i64 - 2 * color_range as i64;
             let mut threshed = Mat::default();
             let im_grey = Mask::from(&im_grey).as_opencv_mat()?;
 
@@ -342,7 +342,7 @@ fn merge_mask_list(
                     label_index,
                     &mut mask_merged,
                     &pred_mask,
-                );
+                )?;
             }
         }
         if refinemask_inpaint {
@@ -398,7 +398,7 @@ fn merge_mask_list(
                     label_index,
                     &mut mask_merged,
                     &pred_mask,
-                );
+                )?;
             }
         }
     }

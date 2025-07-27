@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 pub use base_util::error::ModelLoadError;
 #[cfg(feature = "onnx")]
@@ -15,6 +15,12 @@ pub trait Model {
     fn loaded(&self) -> bool;
     fn unload(&mut self);
     fn load(&mut self) -> Result<(), ModelLoadError>;
+
+    fn download_model(&self, key: &str, file: &str) -> Result<PathBuf, ModelLoadError> {
+        let models = self.models();
+        let model = models.get(key).ok_or(ModelLoadError::ModelNotRegistered)?;
+        ModelDb {}.get(self.kind(), self.name(), file, &model.url, &model.hash)
+    }
 }
 
 #[derive(Clone)]
