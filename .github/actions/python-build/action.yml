@@ -27,15 +27,7 @@ runs:
         pip install wheel delocate
         mkdir -p target/wheels/fixed
         for whl in target/wheels/rusty_manga_image_translator-*.whl; do
-          wheel_dir="tmp_unpacked_wheel"
-          lib_dir="tmp_libs"
-
-          rm -rf "$wheel_dir" "$lib_dir"
-          mkdir -p "$lib_dir"
-
-          cp /opt/homebrew/opt/opencv/lib/libopencv_*.dylib "$lib_dir"
-
-          delocate-patch -w target/wheels/fixed/ -d "$lib_dir" "$whl"
+        delocate-wheel -w target/wheels/fixed/ "$whl"
         done
 
         rm target/wheels/rusty_manga_image_translator-*.whl
