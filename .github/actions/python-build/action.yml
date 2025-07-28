@@ -14,6 +14,9 @@ runs:
     - name: Build with maturin
       run: |
         cd crates/py-bindings
+        if [ "${{ inputs.os }}" = "macos" ]; then
+              export OPENCV_LINK_LIBS=opencv_core,opencv_imgproc
+        fi
         maturin build --release
       shell: bash
 

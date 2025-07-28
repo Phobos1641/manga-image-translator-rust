@@ -15,8 +15,45 @@ runs:
     - name: Install macOS dependencies
       shell: bash
       run: |
+        brew install eigen llvm
+        mkdir build_opencv
+        cd build_opencv
         if [[ "${{ inputs.runs-on }}" == "macos-13" ]]; then
           brew install openssl@3
           echo 'export OPENSSL_DIR=$(brew --prefix openssl@3)' >> $GITHUB_ENV
-        fi
-        brew install opencv llvm
+          git clone https://github.com/opencv/opencv.git
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                 -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+                 -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 \
+                 -DBUILD_LIST=core,imgproc \
+                 -DBUILD_EXAMPLES=OFF \
+                 -DBUILD_TESTS=OFF \
+                 -DBUILD_PERF_TESTS=OFF \
+                 -DBUILD_DOCS=OFF \
+                 -DWITH_OPENCL=ON \
+                 -DWITH_IPP=ON \
+                 -DWITH_EIGEN=ON \
+                 -DWITH_AVFOUNDATION=OFF \
+                 -DWITH_FFMPEG=OFF \
+                 -DBUILD_SHARED_LIBS=ON \
+                 ../opencv
+         fi
+
+        cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+                -DCMAKE_OSX_ARCHITECTURES=arm64 \
+                -DBUILD_LIST=core,imgproc \
+                -DBUILD_EXAMPLES=OFF \
+                -DBUILD_TESTS=OFF \
+                -DBUILD_PERF_TESTS=OFF \
+                -DBUILD_DOCS=OFF \
+                -DBUILD_opencv_apps=OFF \
+                -DWITH_AVFOUNDATION=OFF \
+                -DWITH_FFMPEG=OFF \
+                -DWITH_OPENCL=ON \
+                -DWITH_IPP=ON \
+                -DWITH_EIGEN=ON \
+                -DBUILD_SHARED_LIBS=ON \
+                ../opencv
+         make -j$(sysctl -n hw.ncpu)
+         sudo make install
