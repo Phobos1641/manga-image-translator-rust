@@ -1,0 +1,8 @@
+[package]
+name = "lsb"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+stego = { git = "https://github.com/frederik-uni/stego" }
+image.workspace = true

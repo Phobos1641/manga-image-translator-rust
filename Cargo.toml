@@ -5,12 +5,14 @@ members = [
     "crates/interface/*",
     "crates/modules/detector/*",
     "crates/modules/ocr/*",
+    "crates/modules/watermarks/lsb",
+    "crates/modules/watermarks/rexiv",
     "crates/py-bindings",
     "crates/util",
 ]
 
 [workspace.package]
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 
 [workspace.dependencies]

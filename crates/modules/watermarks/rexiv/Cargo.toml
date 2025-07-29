@@ -1,0 +1,7 @@
+[package]
+name = "rexiv"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rexiv2 = "0.10.0"
