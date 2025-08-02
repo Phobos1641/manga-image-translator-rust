@@ -23,6 +23,14 @@
 | Waifu2x | [arxiv](http://arxiv.org/abs/1501.00092)  | [Docs](https://github.com/nagadomi/nunif/blob/master/waifu2x/docs/training.md) | [Github Maintained](https://github.com/nagadomi/nunif) [GitHub Original](https://github.com/nagadomi/waifu2x) |
 | Anime4k |                                           |                                                                                | [GitHub](https://github.com/bloc97/Anime4K)                                                                   |
 
+## Inpainter
+
+| Model      | Paper                                                                               | Train | Source                                                                                                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lama AOT   |                                                                                     |       |                                                                                                                                                                                                                |
+| Lama Large | [arxiv](https://arxiv.org/abs/2109.07161) [arxiv](https://arxiv.org/abs/2203.00867) |       | [GitHub](https://github.com/advimman/lama) [HomePage](https://www.casualganpapers.com/large-masks-fourier-convolutions-inpainting/LaMa-explained.html) [GitHub](https://github.com/DQiaole/ZITS_inpainting.git) |
+| Lama MPE   | [arxiv](https://arxiv.org/abs/2203.00867)                                           |       | [GitHub](https://github.com/DQiaole/ZITS_inpainting.git)                                                                                                                                                       |
+
 ## Translators
 
 | Model      | Paper                                                                                                                                                         | Train                                                  | Source                                                                                                                                                      |

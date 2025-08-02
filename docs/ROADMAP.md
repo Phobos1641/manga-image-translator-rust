@@ -6,35 +6,43 @@
   - [x] ctd
   - [x] [paddle](https://github.com/mg-chao/paddle-ocr-rs)
   - [x] dbnet_convnext
+  - [ ] yolo5,
+  - [ ] ysg
   - [ ] ~~craft~~
 - [ ] ocr
+  - [ ] [windows](https://lib.rs/crates/uni-ocr)
+  - [ ] [macos](https://lib.rs/crates/uni-ocr)
+  - [ ] [tesseract](https://lib.rs/crates/uni-ocr)
+  - [ ] [oneocr](https://crates.io/crates/oneocr-rs)
+  - [ ] [paddle](https://github.com/mg-chao/paddle-ocr-rs)
   - [ ] 32px
   - [ ] 48px
   - [ ] 48px_ctc
+  - [ ] lens_proto
   - [ ] mocr
     - [x] greedy
     - [ ] beam
 - [ ] inpainter
-  - [ ] default
+  - [ ] lama_aot
   - [ ] lama_large
   - [ ] lama_mpe
   - [ ] sd
   - [ ] none
-  - [ ] original
+  - [ ] patchmatch
 - [ ] colorizer
   - [ ] none
   - [ ] mc2
 - [ ] renderer
-  - [ ] json/struct
+  - [ ] struct
   - [ ] gimp
+  - [ ] [pdf](https://crates.io/crates/oxidize-pdf)
   - [ ] [psd](https://crates.io/crates/psd)
-  - [ ] gimp
   - [ ] html
-  - [ ] png
-- [ ] upscaler
+  - [ ] png/jpeg/qoi
+- [x] upscaler
   - [x] anime4k
   - [x] waifu2x
-  - [ ] esrgan
+  - [x] esrgan
 - [ ] translator
   - [~] baidu
   - [~] caiyun

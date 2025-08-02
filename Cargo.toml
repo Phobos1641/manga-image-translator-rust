@@ -4,6 +4,7 @@ members = [
     "crates/base-util",
     "crates/interface/*",
     "crates/modules/detector/*",
+    "crates/modules/inpainter/*",
     "crates/modules/ocr/*",
     "crates/modules/upscaler/*",
     "crates/modules/watermarks/lsb",
@@ -13,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 
 [workspace.dependencies]

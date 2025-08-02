@@ -174,6 +174,15 @@ impl fmt::Debug for RawImage {
     }
 }
 
+impl Mask {
+    pub fn to_image(self) -> Option<image::GrayImage> {
+        #[cfg(feature = "u16-dims")]
+        return image::GrayImage::from_raw(self.width as u32, self.height as u32, self.data);
+        #[cfg(not(feature = "u16-dims"))]
+        image::GrayImage::from_raw(self.width, self.height, self.data)
+    }
+}
+
 impl RawImage {
     pub fn to_ndarray(self) -> Result<Array<u8, Dim<[usize; 3]>>, ndarray::ShapeError> {
         Array::from_shape_vec(
@@ -264,6 +273,7 @@ pub enum Interpolation {
     Nearest,
     Box,
     Bilinear,
+    BilinearExact,
     Bicubic,
     Lanczos3,
 }

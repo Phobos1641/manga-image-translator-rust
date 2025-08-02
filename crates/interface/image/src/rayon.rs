@@ -32,7 +32,7 @@ impl ImageOp for RayonImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels = image.channels as usize;
 
         if old_w > width && old_h > height {
             return image;
@@ -47,7 +47,7 @@ impl ImageOp for RayonImageProcessor {
 
         new_data
             .par_chunks_mut(width as usize * channels_usize)
-            .zip(image.data.par_chunks((old_w as u32 * channels) as usize))
+            .zip(image.data.par_chunks(old_w as usize * channels))
             .take(old_h as usize)
             .for_each(|(dst_row, src_row)| {
                 dst_row[..src_row.len()].copy_from_slice(src_row);
@@ -57,7 +57,7 @@ impl ImageOp for RayonImageProcessor {
             data: new_data,
             width,
             height,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -68,7 +68,7 @@ impl ImageOp for RayonImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
 
         let new_side = old_w.max(old_h);
         if new_side >= target_side_length {
@@ -97,7 +97,7 @@ impl ImageOp for RayonImageProcessor {
             data: new_data,
             width: new_side,
             height: new_side,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -109,7 +109,7 @@ impl ImageOp for RayonImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
 
         if old_w > width && old_h > height {
             return image;
@@ -137,7 +137,7 @@ impl ImageOp for RayonImageProcessor {
             data: new_data,
             width,
             height,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -294,6 +294,7 @@ impl ImageOp for RayonImageProcessor {
     }
 
     fn gamma_correction(&self, image: super::RawImage) -> super::RawImage {
+        assert_eq!(image.channels, 3);
         let mid = 0.5;
         let pixel_count = (image.width as u64) * (image.height as u64);
 
@@ -334,6 +335,7 @@ impl ImageOp for RayonImageProcessor {
     }
 
     fn histogram_equalization(&self, image: super::RawImage) -> super::RawImage {
+        assert_eq!(image.channels, 3);
         let mut output = Vec::with_capacity(image.data.len());
         unsafe { output.set_len(output.capacity()) };
 
@@ -435,10 +437,12 @@ impl ImageOp for RayonImageProcessor {
         height: DimType,
         interpolation: Interpolation,
     ) -> super::RawImage {
+        assert_eq!(image.channels, 3);
         let resize_alg = match interpolation {
             Interpolation::Nearest => ResizeAlg::Nearest,
             Interpolation::Box => ResizeAlg::Convolution(FilterType::Box),
-            Interpolation::Bilinear => ResizeAlg::Convolution(FilterType::Bilinear),
+            Interpolation::Bilinear => ResizeAlg::Interpolation(FilterType::Bilinear),
+            Interpolation::BilinearExact => ResizeAlg::Convolution(FilterType::Bilinear),
             Interpolation::Bicubic => ResizeAlg::Convolution(FilterType::CatmullRom),
             Interpolation::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
         };
@@ -480,7 +484,8 @@ impl ImageOp for RayonImageProcessor {
         let resize_alg = match interpolation {
             Interpolation::Nearest => ResizeAlg::Nearest,
             Interpolation::Box => ResizeAlg::Convolution(FilterType::Box),
-            Interpolation::Bilinear => ResizeAlg::Convolution(FilterType::Bilinear),
+            Interpolation::Bilinear => ResizeAlg::Interpolation(FilterType::Bilinear),
+            Interpolation::BilinearExact => ResizeAlg::Convolution(FilterType::Bilinear),
             Interpolation::Bicubic => ResizeAlg::Convolution(FilterType::CatmullRom),
             Interpolation::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
         };
@@ -545,17 +550,18 @@ impl ImageOp for RayonImageProcessor {
 
     fn transpose(&self, image: RawImage) -> RawImage {
         let mut output = vec![0u8; image.data.len()];
+        let channels = image.channels as usize;
 
         output
-            .par_chunks_mut(image.height as usize * 3) // each chunk corresponds to one output row
+            .par_chunks_mut(image.height as usize * channels) // each chunk corresponds to one output row
             .enumerate()
             .for_each(|(x, out_row)| {
                 for y in 0..image.height as usize {
-                    let in_offset = (y * image.width as usize + x) * 3;
-                    let out_offset = y * 3;
+                    let in_offset = (y * image.width as usize + x) * channels;
+                    let out_offset = y * channels;
 
-                    out_row[out_offset..out_offset + 3]
-                        .copy_from_slice(&image.data[in_offset..in_offset + 3]);
+                    out_row[out_offset..out_offset + channels]
+                        .copy_from_slice(&image.data[in_offset..in_offset + channels]);
                 }
             });
 
@@ -563,11 +569,12 @@ impl ImageOp for RayonImageProcessor {
             data: output,
             width: image.height,
             height: image.width,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
     fn bgr_to_rgb(&self, mut img: RawImage) -> RawImage {
+        assert_eq!(img.channels, 3);
         assert_eq!(img.data.len() % 3, 0);
         img.data.par_chunks_mut(3).for_each(|chunk| {
             chunk.swap(0, 2);

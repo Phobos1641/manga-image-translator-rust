@@ -1,6 +1,7 @@
 pub mod dbnet;
 pub mod det_arrange;
 pub mod imageproc;
+pub mod lama;
 pub mod opencv;
 mod text_direction;
 

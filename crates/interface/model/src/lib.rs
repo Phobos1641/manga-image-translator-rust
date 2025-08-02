@@ -36,7 +36,7 @@ pub trait Model {
 
 #[macro_export]
 macro_rules! impl_model_load_helpers {
-    ($name:literal, $kind:literal) => {
+    ($kind:literal, $name:literal) => {
         fn reload_(&mut self) -> Result<(), base_util::error::ModelLoadError> {
             self.reload()?;
             Ok(())

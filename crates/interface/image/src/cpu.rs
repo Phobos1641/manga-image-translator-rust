@@ -19,7 +19,7 @@ impl ImageOp for CpuImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
 
         if old_w > width && old_h > height {
             return image;
@@ -49,7 +49,7 @@ impl ImageOp for CpuImageProcessor {
             data: new_data,
             width,
             height,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -60,7 +60,7 @@ impl ImageOp for CpuImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
 
         let new_side = old_w.max(old_h);
         if new_side >= target_side_length {
@@ -93,7 +93,7 @@ impl ImageOp for CpuImageProcessor {
             data: new_data,
             width: new_side,
             height: new_side,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -105,7 +105,7 @@ impl ImageOp for CpuImageProcessor {
     ) -> super::RawImage {
         let old_w = image.width;
         let old_h = image.height;
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
 
         if old_w > width && old_h > height {
             return image;
@@ -136,7 +136,7 @@ impl ImageOp for CpuImageProcessor {
             data: new_data,
             width,
             height,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -146,7 +146,7 @@ impl ImageOp for CpuImageProcessor {
         width: DimType,
         height: DimType,
     ) -> super::RawImage {
-        let channels: usize = 3;
+        let channels: usize = image.channels as usize;
         let orig_stride = image.width as usize * channels;
         let new_stride = width as usize * channels;
 
@@ -170,7 +170,7 @@ impl ImageOp for CpuImageProcessor {
             data: new_data,
             width,
             height,
-            channels: 3,
+            channels: image.channels,
         }
     }
 
@@ -180,7 +180,7 @@ impl ImageOp for CpuImageProcessor {
         width: DimType,
         height: DimType,
     ) -> super::RawImage {
-        let channels: u32 = 3;
+        let channels: u32 = image.channels as u32;
         let new_w = width as usize;
         let new_h = height as usize;
 
@@ -207,7 +207,7 @@ impl ImageOp for CpuImageProcessor {
             data: new_data,
             width: new_w as DimType,
             height: new_h as DimType,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
@@ -293,6 +293,7 @@ impl ImageOp for CpuImageProcessor {
     }
 
     fn gamma_correction(&self, image: super::RawImage) -> super::RawImage {
+        assert_eq!(image.channels, 3);
         let mid = 0.5;
         let pixel_count = (image.width as u64) * (image.height as u64);
 
@@ -332,6 +333,8 @@ impl ImageOp for CpuImageProcessor {
     }
 
     fn histogram_equalization(&self, image: super::RawImage) -> super::RawImage {
+        assert_eq!(image.channels, 3);
+
         let mut output = Vec::with_capacity(image.data.len());
         unsafe { output.set_len(output.capacity()) };
 
@@ -470,6 +473,7 @@ impl ImageOp for CpuImageProcessor {
     }
 
     fn transpose(&self, image: RawImage) -> RawImage {
+        let channels = image.channels as usize;
         let mut output = vec![0u8; image.data.len()];
         unsafe {
             let input_ptr = image.data.as_ptr();
@@ -477,8 +481,8 @@ impl ImageOp for CpuImageProcessor {
 
             for y in 0..image.height as usize {
                 for x in 0..image.width as usize {
-                    let in_offset = (y * image.width as usize + x) * 3;
-                    let out_offset = (x * image.height as usize + y) * 3;
+                    let in_offset = (y * image.width as usize + x) * channels;
+                    let out_offset = (x * image.height as usize + y) * channels;
 
                     *output_ptr.add(out_offset) = *input_ptr.add(in_offset);
                     *output_ptr.add(out_offset + 1) = *input_ptr.add(in_offset + 1);
@@ -490,12 +494,13 @@ impl ImageOp for CpuImageProcessor {
             data: output,
             width: image.height,
             height: image.width,
-            channels: 3,
+            channels: channels as u8,
         }
     }
 
     fn bgr_to_rgb(&self, mut img: RawImage) -> RawImage {
         assert_eq!(img.data.len() % 3, 0);
+        assert_eq!(img.channels, 3);
         for chunk in img.data.chunks_mut(3) {
             chunk.swap(0, 2);
         }
