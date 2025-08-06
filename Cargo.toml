@@ -1,7 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
-    "crates/base-util", "crates/densecrf",
+    "crates/base-util",
+    "crates/densecrf",
     "crates/interface/*",
     "crates/modules/detector/*",
     "crates/modules/inpainter/*",
@@ -16,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
 
 [workspace.dependencies]
@@ -78,6 +79,7 @@ walkdir = "2.5.0"
 config = { version = "0.15.13" }
 serde = "1.0.219"
 ab_glyph = "0.2.31"
+ordered-float = { version = "5" }
 
 [patch.crates-io]
 clipper2c-sys = { git = "https://github.com/tirithen/clipper2c-sys" }

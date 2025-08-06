@@ -72,19 +72,33 @@ runs:
             except subprocess.CalledProcessError:
                 print("Error: Could not find OpenCV via Homebrew.")
                 return []
-        def find_windows_dll() -> Path:
-            # === Locate DLL ===
-            dll_dir = Path("C:/tools/opencv")
-            dll_candidates = list(dll_dir.rglob("opencv_world*.dll"))
-            dlls = [dll for dll in dll_candidates if not re.search(r"d\.dll$", dll.name)]
 
-            if not dlls:
-                print("❌ No matching OpenCV DLLs found (excluding *d.dll).")
-                sys.exit(1)
+        def find_dll_on_path_or_target(dll_name: str) -> Path | None:
+            target_dir = Path("target") / "release"
+            for dir in os.environ['PATH'].split(os.pathsep):
+                candidate = Path(dir) / dll_name
+                if candidate.exists():
+                    return candidate.resolve()
 
-            dll_path = dlls[0]
-            print(f"Found DLL: {dll_path}")
-            return dll_path
+            for file in target_dir.rglob(dll_name):
+                if file.is_file():
+                    return file.resolve()
+
+            return None
+
+        def find_windows_dll() -> List[Path]:
+            import pefile
+            pe = pefile.PE(str(binary_path))
+            dll_paths = []
+
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                dll_name = entry.dll.decode('utf-8')
+                dll_path = find_dll_on_path(dll_name)
+                if dll_path:
+                    dll_paths.append(dll_path)
+                else:
+                    print(f"DLL not found in PATH: {dll_name}")
+            return dll_paths
 
         def wheel_paths() -> list[Path]:
             # === Locate wheel ===
@@ -125,7 +139,7 @@ runs:
             package_root_subdir = "rusty_manga_image_translator"
             dll_list = find_dlls()
             if sys.platform.startswith("win"):
-                dll_list.append(find_windows_dll())
+                dll_list.extend(find_windows_dll())
             if sys.platform.startswith("linux"):
               targets_inside_wheel = [(f"{package_root_subdir}.libs/{path.name}", path, generate_info(path)) for path in dll_list]
             else:

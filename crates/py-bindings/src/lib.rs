@@ -7,6 +7,8 @@ use interface_detector::textlines::Quadrilateral;
 use interface_detector::{DefaultOptions, Detector, PreprocessorOptions};
 use interface_image::{CpuImageProcessor, ImageOp, RawImage};
 use interface_model::CreateData;
+use interface_ocr::QuadrilateralInfo;
+use interface_translator::LangIdDetector;
 use numpy::{
     ndarray::{Array2, Array3},
     IntoPyArray as _, PyArray2, PyArray3, PyArrayMethods, PyReadonlyArray3,
@@ -19,6 +21,34 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*};
 pub struct Session {
     processor: Arc<Box<dyn ImageOp + Send + Sync>>,
     inner: CreateData,
+}
+
+#[pyfunction]
+pub fn textline_merge_dispatch(
+    items: Vec<(
+        String,
+        Vec<(i64, i64)>,
+        f64,
+        Option<[u8; 3]>,
+        Option<[u8; 3]>,
+    )>,
+    width: u16,
+    height: u16,
+) -> Vec<(String, Vec<[(i64, i64); 4]>, f64)> {
+    let det = LangIdDetector::new().unwrap();
+    let items = items
+        .into_iter()
+        .map(|v| QuadrilateralInfo {
+            text: v.0,
+            fg: v.3,
+            bg: v.4,
+            pos: Quadrilateral::new(v.1, v.2),
+        })
+        .collect::<Vec<_>>();
+    let out = textline_merge::dispatch(&items, width, height, &det);
+    out.into_iter()
+        .map(|v| (v.text, v.lines, v.angle))
+        .collect::<Vec<_>>()
 }
 
 #[pymethods]

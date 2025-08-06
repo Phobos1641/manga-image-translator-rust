@@ -140,7 +140,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "ct2rs",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "reqwest",
  "rust_tokenizers",
  "thiserror 2.0.12",
@@ -153,10 +153,10 @@ source = "git+https://github.com/frederik-uni/aio-translator#ccdfd9ce8f492db396d
 dependencies = [
  "aio-translator-interface",
  "anyhow",
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "base-util 0.8.0",
  "ct2rs",
  "env_logger 0.11.8",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "log",
  "maplit",
 ]
@@ -194,10 +194,10 @@ source = "git+https://github.com/frederik-uni/aio-translator#ccdfd9ce8f492db396d
 dependencies = [
  "aio-translator-interface",
  "anyhow",
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "base-util 0.8.0",
  "ct2rs",
  "env_logger 0.11.8",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "maplit",
 ]
 
@@ -208,10 +208,10 @@ source = "git+https://github.com/frederik-uni/aio-translator#ccdfd9ce8f492db396d
 dependencies = [
  "aio-translator-interface",
  "anyhow",
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "base-util 0.8.0",
  "ct2rs",
  "env_logger 0.11.8",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "maplit",
 ]
 
@@ -234,10 +234,10 @@ source = "git+https://github.com/frederik-uni/aio-translator#ccdfd9ce8f492db396d
 dependencies = [
  "aio-translator-interface",
  "anyhow",
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "base-util 0.8.0",
  "ct2rs",
  "env_logger 0.11.8",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "maplit",
 ]
 
@@ -282,10 +282,10 @@ source = "git+https://github.com/frederik-uni/aio-translator#ccdfd9ce8f492db396d
 dependencies = [
  "aio-translator-interface",
  "anyhow",
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "base-util 0.8.0",
  "ct2rs",
  "env_logger 0.11.8",
- "interface-model 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
+ "interface-model 0.8.0",
  "maplit",
  "regex",
 ]
@@ -343,12 +343,12 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
 name = "anime4k"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "half",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "interface-upscaler",
  "maplit",
  "ndarray",
@@ -551,22 +551,22 @@ dependencies = [
 [[package]]
 name = "base-util"
 version = "0.8.0"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#fb51572938e6c63e70f9ce28bdbc36b8cd1f4206"
 dependencies = [
  "anyhow",
  "ndarray",
- "opencv",
- "ort",
  "thiserror 2.0.12",
  "ureq 3.0.12",
 ]
 
 [[package]]
 name = "base-util"
-version = "0.8.0"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#fb51572938e6c63e70f9ce28bdbc36b8cd1f4206"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "ndarray",
+ "opencv",
+ "ort",
  "thiserror 2.0.12",
  "ureq 3.0.12",
 ]
@@ -918,12 +918,12 @@ dependencies = [
 
 [[package]]
 name = "color"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "interface-image",
  "interface-inpainter",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "ndarray",
  "ndarray-npy",
 ]
@@ -942,7 +942,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "colorizer"
-version = "0.8.0"
+version = "0.8.1"
 
 [[package]]
 name = "config"
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "craft"
-version = "0.8.0"
+version = "0.8.1"
 
 [[package]]
 name = "crc32fast"
@@ -1178,14 +1178,14 @@ dependencies = [
 
 [[package]]
 name = "ctd"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "imageproc",
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "maplit",
  "ndarray",
  "opencv",
@@ -1293,15 +1293,15 @@ dependencies = [
 
 [[package]]
 name = "dbnet"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "criterion",
  "env_logger 0.11.8",
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "log",
  "maplit",
  "ndarray",
@@ -1315,7 +1315,7 @@ dependencies = [
 
 [[package]]
 name = "densecrf"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cc",
 ]
@@ -1597,12 +1597,12 @@ dependencies = [
 
 [[package]]
 name = "esrgan"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "half",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "interface-upscaler",
  "maplit",
  "ndarray",
@@ -2492,25 +2492,25 @@ dependencies = [
 
 [[package]]
 name = "interface-detector"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "approx",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "criterion",
  "geo",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "log",
  "serde",
 ]
 
 [[package]]
 name = "interface-image"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "criterion",
  "fast_image_resize",
  "image",
@@ -2522,18 +2522,34 @@ dependencies = [
 
 [[package]]
 name = "interface-inpainter"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
 ]
 
 [[package]]
 name = "interface-model"
 version = "0.8.0"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#fb51572938e6c63e70f9ce28bdbc36b8cd1f4206"
 dependencies = [
  "base-util 0.8.0",
+ "flate2",
+ "indicatif",
+ "log",
+ "ort",
+ "sha2",
+ "tar",
+ "tempfile",
+ "ureq 3.0.12",
+]
+
+[[package]]
+name = "interface-model"
+version = "0.8.1"
+dependencies = [
+ "base-util 0.8.1",
  "env_logger 0.11.8",
  "flate2",
  "indicatif",
@@ -2546,24 +2562,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "interface-model"
-version = "0.8.0"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#fb51572938e6c63e70f9ce28bdbc36b8cd1f4206"
-dependencies = [
- "base-util 0.8.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
- "flate2",
- "indicatif",
- "log",
- "ort",
- "sha2",
- "tar",
- "tempfile",
- "ureq 3.0.12",
-]
-
-[[package]]
 name = "interface-ocr"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "interface-detector",
@@ -2572,7 +2572,7 @@ dependencies = [
 
 [[package]]
 name = "interface-renderer"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
  "interface-image",
@@ -2581,16 +2581,16 @@ dependencies = [
 
 [[package]]
 name = "interface-translator"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "aio-translator",
 ]
 
 [[package]]
 name = "interface-upscaler"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "interface-image",
 ]
 
@@ -2780,13 +2780,13 @@ dependencies = [
 
 [[package]]
 name = "lama_aot"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "interface-image",
  "interface-inpainter",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "maplit",
  "ndarray",
  "ndarray-npy",
@@ -2796,13 +2796,13 @@ dependencies = [
 
 [[package]]
 name = "lama_large"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "interface-image",
  "interface-inpainter",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "maplit",
  "ndarray",
  "ndarray-npy",
@@ -2812,14 +2812,14 @@ dependencies = [
 
 [[package]]
 name = "lama_mpe"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "fast_image_resize",
  "interface-image",
  "interface-inpainter",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "maplit",
  "ndarray",
  "ndarray-npy",
@@ -2965,7 +2965,7 @@ dependencies = [
 
 [[package]]
 name = "lsb"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "image",
  "stego",
@@ -2979,14 +2979,14 @@ checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 
 [[package]]
 name = "manga-ocr"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "image",
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "interface-ocr",
  "maplit",
  "ndarray",
@@ -3125,11 +3125,11 @@ dependencies = [
 
 [[package]]
 name = "native"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "interface-ocr",
  "uni-ocr",
 ]
@@ -3535,15 +3535,15 @@ dependencies = [
 
 [[package]]
 name = "paddle"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "criterion",
  "geo",
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "maplit",
  "ort",
  "paddle-ocr-rs",
@@ -4272,7 +4272,7 @@ dependencies = [
 
 [[package]]
 name = "rexiv"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "rexiv2",
 ]
@@ -4462,17 +4462,20 @@ checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
 name = "rusty-manga-image-translator"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "dbnet",
  "interface-detector",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
+ "interface-ocr",
+ "interface-translator",
  "numpy",
  "paddle",
  "parking_lot",
  "pyo3",
+ "textline-merge",
 ]
 
 [[package]]
@@ -4723,11 +4726,11 @@ dependencies = [
 
 [[package]]
 name = "simple-runtime"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "ab_glyph",
  "anime4k",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "clap 4.5.42",
  "config",
  "ctd",
@@ -5097,7 +5100,7 @@ dependencies = [
 
 [[package]]
 name = "textline-merge"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "interface-detector",
  "interface-ocr",
@@ -5626,10 +5629,10 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "util"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "anyhow",
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "clipper2",
  "clipper2c-sys",
  "criterion",
@@ -5697,11 +5700,11 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "waifu2x"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
- "base-util 0.8.0",
+ "base-util 0.8.1",
  "interface-image",
- "interface-model 0.8.0",
+ "interface-model 0.8.1",
  "interface-upscaler",
  "maplit",
  "ndarray",
