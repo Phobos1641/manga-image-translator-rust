@@ -16,9 +16,11 @@ runs:
       shell: bash
       run: |
         libpath=target/release/ctranslate2-vendor/dyn
-        ls target/release/ctranslate2-vendor/dyn
-        ls target/release/ctranslate2-vendor
+        ls
+        ls target
         ls target/release
+        ls target/release/ctranslate2-vendor
+        ls target/release/ctranslate2-vendor/dyn
 
         if [ -n "$libpath" ]; then
           ln -sf "$libpath/libcudnn.so" "$libpath/libcudnn.so.9"
