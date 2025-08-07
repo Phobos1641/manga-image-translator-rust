@@ -1,8 +1,9 @@
 mod components;
+mod main;
 use std::path::PathBuf;
 
 use eframe::App;
-use egui::Layout;
+use egui::{Layout, ScrollArea};
 
 use crate::ui::components::file_upload_button;
 
@@ -46,7 +47,7 @@ impl App for MitApp {
                     },
                 );
             } else {
-                ui.label("Hello World");
+                self.main_app(ui);
             }
         });
     }
