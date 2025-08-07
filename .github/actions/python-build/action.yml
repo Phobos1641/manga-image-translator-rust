@@ -15,7 +15,10 @@ runs:
       if: ${{ inputs.os == 'linux' }}
       shell: bash
       run: |
-        libpath=$(find target/release -type f -name 'libcudnn.so' -exec dirname {} \; | head -n1)
+        libpath=target/release/ctranslate2-vendor/dyn
+        ls target/release/ctranslate2-vendor/dyn
+        ls target/release/ctranslate2-vendor
+        ls target/release
 
         if [ -n "$libpath" ]; then
           ln -sf "$libpath/libcudnn.so" "$libpath/libcudnn.so.9"
