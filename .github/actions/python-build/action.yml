@@ -70,6 +70,7 @@ runs:
                 pattern = "libonnxruntime_providers_*.so"
 
             return list(base_dir.glob(pattern))
+
         def get_opencv_dylib_paths():
             try:
                 prefix = subprocess.check_output(["brew", "--prefix", "opencv"], text=True).strip()
@@ -79,6 +80,15 @@ runs:
             except subprocess.CalledProcessError:
                 print("Error: Could not find OpenCV via Homebrew.")
                 return []
+
+        def find_binary_in_wheel(wheel: WheelFile, pattern: str) -> Path | None:
+          for name in wheel.namelist():
+            if name.endswith(pattern):
+              tmp_path = Path("/tmp") / Path(name).name
+              with wheel.open(name) as src, open(tmp_path, "wb") as dst:
+                dst.write(src.read())
+              return tmp_path
+          return None
 
         def find_dll_on_path_or_target(dll_name: str) -> Optional[Path]:
             target_dir = Path("target") / "release"
@@ -93,7 +103,7 @@ runs:
 
             return None
 
-        def find_windows_dll() -> List[Path]:
+        def find_windows_dll(binary_path) -> List[Path]:
             import pefile
             pe = pefile.PE(str(binary_path))
             dll_paths = []
@@ -145,8 +155,6 @@ runs:
             # === Set up target path inside wheel ===
             package_root_subdir = "rusty_manga_image_translator"
             dll_list = find_dlls()
-            if sys.platform.startswith("win"):
-                dll_list.extend(find_windows_dll())
             if sys.platform.startswith("linux"):
               targets_inside_wheel = [(f"{package_root_subdir}.libs/{path.name}", path, generate_info(path)) for path in dll_list]
             else:
@@ -160,6 +168,11 @@ runs:
                     record_name = get_record_name(original_wheel, record_pattern)
                     if record_name is None:
                         raise ValueError("RECORD file not found")
+                    binary_path = find_binary_in_wheel(original_wheel, 'rusty_manga_image_translator*.pyd')
+                    if binary_path is None:
+                        raise FileNotFoundError("Could not find the binary inside the wheel")
+                    if sys.platform.startswith("win"):
+                        dll_list.extend(find_windows_dll(binary_path))
                     rewrite(original_wheel, new_wheel, targets_inside_wheel, record_name)
                     if record_name:
                         record_content = original_wheel.read(record_name).decode('utf-8')

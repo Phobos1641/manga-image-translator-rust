@@ -4114,10 +4114,14 @@ dependencies = [
 name = "native"
 version = "0.8.12"
 dependencies = [
+ "anyhow",
+ "base-util 0.8.12",
+ "image",
  "interface-detector",
  "interface-image",
  "interface-model 0.8.12",
  "interface-ocr",
+ "tokio",
  "uni-ocr",
 ]
 

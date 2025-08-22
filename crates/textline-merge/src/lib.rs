@@ -3,12 +3,16 @@ use std::{
     f64::consts::PI,
 };
 
+use geo::{
+    ConvexHull, Distance as _, Euclidean, EuclideanDistance as _, MinimumRotatedRect, MultiPoint,
+    Point,
+};
 use interface_ocr::QuadrilateralInfo;
 use interface_translator::{is_valuable_text, Detector, Language};
 use itertools::Itertools as _;
 use log::info;
 use once_cell::sync::Lazy;
-use ordered_float::OrderedFloat;
+use ordered_float::{Float as _, OrderedFloat};
 use petgraph::{
     algo::min_spanning_tree,
     data::Element,
@@ -117,6 +121,15 @@ fn rotate_polygons(
         .collect()
 }
 
+pub struct OBB {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    /// radians
+    pub theta: f64,
+}
+
 pub struct TextBlock {
     pub lines: Vec<[(i64, i64); 4]>,
     pub text: String,
@@ -129,6 +142,27 @@ pub struct TextBlock {
     language: Option<Language>,
 }
 impl TextBlock {
+    pub fn obb(&self) -> Option<OBB> {
+        let coords = MultiPoint::new(vec![Point::new(0.0, 0.0)])
+            .convex_hull()
+            .minimum_rotated_rect()?;
+
+        let coords = &coords.exterior().0;
+        let w = Euclidean.distance(coords[0], coords[1]);
+        let h = Euclidean.distance(coords[1], coords[2]);
+        let dx = coords[1].x - coords[0].x;
+        let dy = coords[1].y - coords[0].y;
+        let center_x = coords.iter().take(4).map(|c| c.x).sum::<f64>() / 4.0;
+        let center_y = coords.iter().take(4).map(|c| c.y).sum::<f64>() / 4.0;
+        let rotation = dy.atan2(dx);
+        Some(OBB {
+            x: center_x,
+            y: center_y,
+            w,
+            h,
+            theta: rotation,
+        })
+    }
     pub fn new(
         lines: Vec<[(i64, i64); 4]>,
         texts: Vec<String>,
