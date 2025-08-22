@@ -94,7 +94,7 @@ runs:
                     return tmp_path
             return None
 
-        def find_dll_on_path_or_target(dll_name: str) -> Optional[Path]:
+        def find_dll_on_path(dll_name: str) -> Optional[Path]:
             target_dir = Path("target") / "release"
             for dir in os.environ['PATH'].split(os.pathsep):
                 candidate = Path(dir) / dll_name
