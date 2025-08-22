@@ -23,7 +23,7 @@ runs:
         $latestVersion = (Get-ChildItem -Path $vsPath | Sort-Object Name -Descending | Select-Object -First 1).Name
         $dumpbinPath = "$vsPath\$latestVersion\bin\Hostx64\x64"
         echo $dumpbinPath >> $env:GITHUB_PATH
-        echo "DUMPBIN=$dumpbinPath" >> $env:GITHUB_ENV
+        echo "DUMPBIN=$dumpbinPath\\dumpbin.exe" >> $env:GITHUB_ENV
         $files = Get-ChildItem -Path "C:\tools\opencv" -Recurse -Filter "opencv_world*.lib" |
           Where-Object { $_.Name -notmatch "d\.lib$" }
 
