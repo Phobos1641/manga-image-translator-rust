@@ -1,19 +1,18 @@
 [package]
-name = "manga-ocr"
+name = "tesseract"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
+uni-ocr.workspace = true
 interface-model.workspace = true
 interface-ocr.workspace = true
 interface-detector.workspace = true
 interface-image.workspace = true
-ndarray.workspace = true
-ort.workspace = true
-base-util.workspace = true
-anyhow.workspace = true
-maplit.workspace = true
 image.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+anyhow.workspace = true
+base-util.workspace = true
 async-trait.workspace = true
 
 [dev-dependencies]

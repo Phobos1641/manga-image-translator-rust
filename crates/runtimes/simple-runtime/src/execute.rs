@@ -80,6 +80,7 @@ impl Models {
         let textlines = self
             .get_ocr(config.ocr.ocr)
             .detect(&img, &areas, &img_processor)
+            .await
             .unwrap();
         let mut textblocks = textline_merge::dispatch_main(
             &textlines,

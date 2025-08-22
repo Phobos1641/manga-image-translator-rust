@@ -13,3 +13,4 @@ image.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 anyhow.workspace = true
 base-util.workspace = true
+async-trait.workspace = true

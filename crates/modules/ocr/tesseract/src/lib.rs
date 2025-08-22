@@ -7,13 +7,13 @@ use interface_ocr::{Ocr, QuadrilateralInfo};
 use uni_ocr::{Language, OcrEngine, OcrOptions, OcrProvider};
 
 #[derive(Default)]
-pub struct NativeOCR {
+pub struct TesseractOCR {
     model: Option<OcrEngine>,
 }
 
-impl NativeOCR {}
+impl TesseractOCR {}
 
-impl ModelLoad for NativeOCR {
+impl ModelLoad for TesseractOCR {
     type T = OcrEngine;
 
     fn loaded(&self) -> bool {
@@ -25,21 +25,21 @@ impl ModelLoad for NativeOCR {
     }
 
     fn reload(&mut self) -> Result<&mut Self::T, interface_model::ModelLoadError> {
-        let engine = OcrEngine::new(OcrProvider::Auto).unwrap().with_options(
-            OcrOptions::default().languages(vec![
+        let engine = OcrEngine::new(OcrProvider::Tesseract)
+            .unwrap()
+            .with_options(OcrOptions::default().languages(vec![
                 Language::Chinese,
                 Language::Japanese,
                 Language::Korean,
                 Language::English,
-            ]),
-        );
+            ]));
         self.model = Some(engine);
         Ok(self.model.as_mut().unwrap())
     }
 }
 
-impl Model for NativeOCR {
-    impl_model_load_helpers!("ocr", "native");
+impl Model for TesseractOCR {
+    impl_model_load_helpers!("ocr", "tesseract");
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         HashMap::new()
@@ -51,7 +51,7 @@ impl Model for NativeOCR {
 }
 
 #[async_trait::async_trait]
-impl Ocr for NativeOCR {
+impl Ocr for TesseractOCR {
     async fn detect(
         &mut self,
         image: &interface_image::RawImage,
@@ -99,13 +99,13 @@ mod tests {
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
     use interface_ocr::Ocr as _;
 
-    use crate::NativeOCR;
+    use crate::TesseractOCR;
 
     #[tokio::test]
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = NativeOCR::default();
+        let mut mocr = TesseractOCR::default();
         let inp = vec![
             Quadrilateral::new(vec![(208, 4), (246, 4), (246, 192), (208, 192)], 1.0),
             Quadrilateral::new(vec![(76, 1788), (128, 1788), (128, 1930), (76, 1930)], 1.0),

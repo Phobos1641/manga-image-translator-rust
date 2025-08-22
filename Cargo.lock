@@ -3465,6 +3465,7 @@ name = "interface-ocr"
 version = "0.8.12"
 dependencies = [
  "anyhow",
+ "async-trait",
  "interface-detector",
  "interface-image",
 ]
@@ -3925,6 +3926,7 @@ name = "manga-ocr"
 version = "0.8.12"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base-util 0.8.12",
  "image",
  "interface-detector",
@@ -3934,6 +3936,7 @@ dependencies = [
  "maplit",
  "ndarray",
  "ort",
+ "tokio",
 ]
 
 [[package]]
@@ -4115,6 +4118,7 @@ name = "native"
 version = "0.8.12"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base-util 0.8.12",
  "image",
  "interface-detector",
@@ -6787,6 +6791,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "tesseract"
+version = "0.8.12"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base-util 0.8.12",
+ "image",
+ "interface-detector",
+ "interface-image",
+ "interface-model 0.8.12",
+ "interface-ocr",
+ "tokio",
+ "uni-ocr",
 ]
 
 [[package]]

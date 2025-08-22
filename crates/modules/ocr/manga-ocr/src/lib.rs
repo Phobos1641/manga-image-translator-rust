@@ -11,7 +11,11 @@ use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelLoadError,
 use interface_ocr::QuadrilateralInfo;
 use maplit::hashmap;
 use ndarray::{s, stack, Array2, Array4, Axis};
-use ort::{inputs, session::Session, value::Tensor};
+use ort::{
+    inputs,
+    session::{RunOptions, Session},
+    value::Tensor,
+};
 
 pub struct MangaOCRModels {
     enc: Session,
@@ -88,8 +92,9 @@ impl Model for MangaOCR {
     }
 }
 
+#[async_trait::async_trait]
 impl interface_ocr::Ocr for MangaOCR {
-    fn detect(
+    async fn detect(
         &mut self,
         image: &interface_image::RawImage,
         areas: &[Quadrilateral],
@@ -105,13 +110,13 @@ impl interface_ocr::Ocr for MangaOCR {
             let bbox = area.aabb();
             let view = grayscale.view(bbox.x as u32, bbox.y as u32, bbox.w as u32, bbox.h as u32);
             let img = Mask::from(view.to_image());
-            texts.push(self.detect_patch(img, area.clone(), img_processor)?);
+            texts.push(self.detect_patch(img, area.clone(), img_processor).await?);
         }
 
         Ok(texts)
     }
 
-    fn detect_patch(
+    async fn detect_patch(
         &mut self,
         image: Mask,
         area: Quadrilateral,
@@ -130,14 +135,21 @@ impl interface_ocr::Ocr for MangaOCR {
         let hs = &out[0];
 
         let mut token_ids: Vec<i64> = vec![sos_idnex];
+        let run_options = RunOptions::new()?;
         for _ in 0..self.max_length {
             let input = Array2::from_shape_vec((1, token_ids.len()), token_ids.clone())?;
             let t = Tensor::from_array(input)?;
 
-            let out = models.dec.run(inputs! {
-                "encoder_hidden_states" => hs,
-                "input_ids" => t,
-            })?;
+            let out = models
+                .dec
+                .run_async(
+                    inputs! {
+                        "encoder_hidden_states" => hs,
+                        "input_ids" => t,
+                    },
+                    &run_options,
+                )?
+                .await?;
             let logits = out["logits"].try_extract_array::<f32>()?;
             let v = logits.slice(s![0, -1, ..]);
             let token_id = v
@@ -187,8 +199,8 @@ mod tests {
 
     use crate::MangaOCR;
 
-    #[test]
-    fn ocr_test() {
+    #[tokio::test]
+    async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
         let mut mocr = MangaOCR::new(all_providers(), 255);
@@ -197,7 +209,7 @@ mod tests {
             Quadrilateral::new(vec![(76, 1788), (128, 1788), (128, 1930), (76, 1930)], 1.0),
         ];
         let ip = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
-        let v = mocr.detect(&img, &inp, &ip).unwrap();
+        let v = mocr.detect(&img, &inp, &ip).await.unwrap();
         assert_eq!(v[0].text, "そうだなあ・・・");
         assert_eq!(v.len(), 2);
     }

@@ -1,8 +1,9 @@
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask, RawImage};
 
+#[async_trait::async_trait]
 pub trait Ocr {
-    fn detect(
+    async fn detect(
         &mut self,
         image: &RawImage,
         areas: &[Quadrilateral],
@@ -10,7 +11,7 @@ pub trait Ocr {
     ) -> anyhow::Result<Vec<QuadrilateralInfo>>;
 
     /// image is already the sliced image
-    fn detect_patch(
+    async fn detect_patch(
         &mut self,
         sliced_image: Mask,
         area: Quadrilateral,

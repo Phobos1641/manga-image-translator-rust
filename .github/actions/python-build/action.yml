@@ -81,7 +81,7 @@ runs:
                 print("Error: Could not find OpenCV via Homebrew.")
                 return []
 
-        def find_binary_in_wheel(wheel: WheelFile, pattern: str) -> Path | None:
+        def find_binary_in_wheel(wheel: WheelFile, pattern: str) -> Optional[Path]:
           for name in wheel.namelist():
             if name.endswith(pattern):
               tmp_path = Path("/tmp") / Path(name).name
@@ -168,10 +168,11 @@ runs:
                     record_name = get_record_name(original_wheel, record_pattern)
                     if record_name is None:
                         raise ValueError("RECORD file not found")
-                    binary_path = find_binary_in_wheel(original_wheel, 'rusty_manga_image_translator*.pyd')
-                    if binary_path is None:
-                        raise FileNotFoundError("Could not find the binary inside the wheel")
+
                     if sys.platform.startswith("win"):
+                        binary_path = find_binary_in_wheel(original_wheel, 'rusty_manga_image_translator*.pyd')
+                        if binary_path is None:
+                          raise FileNotFoundError("Could not find the binary inside the wheel")
                         dll_list.extend(find_windows_dll(binary_path))
                     rewrite(original_wheel, new_wheel, targets_inside_wheel, record_name)
                     if record_name:
