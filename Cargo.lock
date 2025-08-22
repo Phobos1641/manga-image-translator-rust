@@ -792,7 +792,7 @@ dependencies = [
 [[package]]
 name = "base-util"
 version = "0.8.12"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#43fb07befe64f84ee9b5f7f8fedaff8c52bb124f"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#3dd1761c81f70e190f0495349aef925e007ea926"
 dependencies = [
  "anyhow",
  "ndarray",
@@ -1571,7 +1571,7 @@ dependencies = [
 [[package]]
 name = "ct2rs"
 version = "0.9.7"
-source = "git+https://github.com/frederik-uni/ctranslate2-rs?branch=use-with-dynamic-linking#db70ec506e28db69b699166975af1139c5396244"
+source = "git+https://github.com/frederik-uni/ctranslate2-rs?branch=use-with-dynamic-linking#63869631f0e5206d8cec4bdf25432edef9ea332b"
 dependencies = [
  "anyhow",
  "cmake",
@@ -3447,7 +3447,7 @@ dependencies = [
 [[package]]
 name = "interface-model"
 version = "0.8.12"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#43fb07befe64f84ee9b5f7f8fedaff8c52bb124f"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#3dd1761c81f70e190f0495349aef925e007ea926"
 dependencies = [
  "base-util 0.8.12 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
  "flate2",
@@ -8413,9 +8413,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.7.12"
+version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3edebf492c8125044983378ecb5766203ad3b4c2f7a922bd7dd207f6d443e95"
+checksum = "21a0236b59786fed61e2a80582dd500fe61f18b5dca67a4a067d0bc9039339cf"
 dependencies = [
  "memchr",
 ]
