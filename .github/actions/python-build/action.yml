@@ -15,13 +15,18 @@ runs:
       if: ${{ inputs.os == 'linux' }}
       shell: bash
       run: |
-        libpath=$(find target/release -type f -name 'libcudnn.so' -exec dirname {} \; | head -n1)
+        libfile=$(find target/release -type f -name 'libcudnn.so' | head -n1)
 
-        if [ -n "$libpath" ]; then
-          ln -sf "$libpath/libcudnn.so" "$libpath/libcudnn.so.9"
-          echo "Found and linked libcudnn.so -> libcudnn.so.9 in $libpath"
-          echo "LIBRARY_PATH=$libpath:$LIBRARY_PATH" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$libpath:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        if [ -n "$libfile" ]; then
+          echo "Found libcudnn at $libfile"
+
+          # Use /usr/local/lib since it's already in the default library search path
+          sudo mkdir -p /usr/local/lib
+
+          sudo ln -sf "$libfile" /usr/local/lib/libcudnn.so.9
+          sudo ldconfig   # refresh the dynamic linker cache
+
+          echo "✅ Linked libcudnn globally: /usr/local/lib/libcudnn.so.9"
         else
           echo "❌ libcudnn.so not found in target/release"
           exit 1
