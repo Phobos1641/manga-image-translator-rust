@@ -62,6 +62,7 @@ runs:
         cat > inject_dll.py << 'EOF'
         from wheel.wheelfile import WheelFile
         from pathlib import Path
+        from typing import List
         import glob
         import sys
         import re
