@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use interface_image::{ImageOp, Mask, RawImage};
 use interface_model::Model;
 
@@ -22,7 +24,7 @@ pub trait Inpainter: Model {
         image: RawImage,
         mask: Mask,
         options: InpainterOptions,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<RawImage>;
 }
 

@@ -36,7 +36,7 @@ pub struct Data {}
 //     image: &RawImage,
 //     pre_options: PreprocessorOptions,
 //     options: &dyn Any,
-//     img_processor: &Box<dyn ImageOp + Send + Sync>,
+//     img_processor: &Arc<dyn ImageOp + Send + Sync>,
 // ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
 
 // }
@@ -50,7 +50,7 @@ pub trait Detector: Model {
         image: &RawImage,
         pre_processor_options: PreprocessorOptions,
         options: &[u8],
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let v = common::detect(image, &pre_processor_options, img_processor, |img| {
             self.infer(img, options, img_processor)
@@ -70,7 +70,7 @@ pub trait Detector: Model {
         &mut self,
         img: RawImage,
         options: &[u8],
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)>;
 }
 

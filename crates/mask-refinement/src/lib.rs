@@ -1,7 +1,7 @@
 mod bubble;
 mod expand;
 
-use std::{borrow::Cow, i32};
+use std::{borrow::Cow, i32, sync::Arc};
 
 use interface_detector::textlines::{BBox, Quadrilateral};
 use interface_image::{ImageOp, Mask, RawImage};
@@ -67,7 +67,7 @@ pub fn dispatch(
     method: Method,
     ignore_bubble: i32,
     furi: bool,
-    image_op: &Box<dyn ImageOp + Send + Sync>,
+    image_op: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Mask {
     let raw_mask = if furi {
         Cow::Owned(image_op.resize_mask(

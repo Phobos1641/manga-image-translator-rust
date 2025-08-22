@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use interface_image::{DimType, ImageOp, Mask, RawImage};
 
 pub fn resize_keep_aspect(
     img: RawImage,
     size: u16,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> RawImage {
     let ratio = size as f64 / img.width.max(img.height) as f64;
     let new_width = img.width as f64 * ratio;
@@ -20,7 +22,7 @@ pub fn resize_keep_aspect(
 pub fn resize_keep_aspect_mask(
     img: Mask,
     size: u16,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Mask {
     let ratio = size as f64 / img.width.max(img.height) as f64;
     let new_width = img.width as f64 * ratio;
@@ -38,7 +40,7 @@ pub fn lama_resize_image(
     mut image: RawImage,
     mut mask: Mask,
     inpainting_size: u16,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> (RawImage, Mask) {
     let w = image.width;
     let h = image.height;
@@ -52,7 +54,7 @@ pub fn lama_resize_image(
 pub fn lama_add_border(
     mut image: RawImage,
     mut mask: Mask,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> (RawImage, Mask, u16, u16) {
     let w = image.width;
     let h = image.height;

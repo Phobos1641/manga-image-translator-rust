@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use base_util::onnx::{new_session, Providers};
 use half::f16;
@@ -91,7 +91,7 @@ impl Upscaler for Anime4KUpscaler {
         image: &RawImage,
         _: Option<usize>,
         _: usize,
-        _: &Box<dyn interface_image::ImageOp + Send + Sync>,
+        _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
     ) -> Result<RawImage, base_util::error::Error> {
         let image = image
             .clone()

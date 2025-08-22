@@ -1,5 +1,7 @@
 mod refine_mask;
 
+use std::sync::Arc;
+
 use base_util::{
     error::{PostProcessingError, ProcessingError},
     onnx::{new_session, Providers},
@@ -68,7 +70,7 @@ impl Detector for CtdDetector {
         &mut self,
         img: RawImage,
         _: DefaultOptions,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let (im_w, im_h) = (img.width, img.height);
         let session = self.load()?;
@@ -163,7 +165,7 @@ fn det_batch_forward_ctd(
 
 fn preprocess_img(
     mut img: RawImage,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
     input_size: (u32, u32),
     bgr2rgb: bool,
     half: bool,
@@ -186,7 +188,7 @@ fn preprocess_img(
 
 fn letterbox(
     mut im: RawImage,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
     new_shape: (u32, u32),
     auto: bool,
     scale_fill: bool,
@@ -228,6 +230,8 @@ fn letterbox(
 #[cfg(test)]
 mod tests {
 
+    use std::sync::Arc;
+
     use base_util::onnx::all_providers;
     use interface_detector::{Detector as _, PreprocessorOptions};
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
@@ -246,7 +250,7 @@ mod tests {
     fn run() {
         let mut data = CtdDetector::new(all_providers());
         let cpu_image_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         data.load().expect("Failed to load data");
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");

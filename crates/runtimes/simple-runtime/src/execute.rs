@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::PathBuf};
+use std::{fs::File, io::Write, path::PathBuf, sync::Arc};
 
 use image::{DynamicImage, GrayImage};
 use interface_image::{CpuImageProcessor, ImageOp, RawImage};
@@ -13,7 +13,7 @@ impl Models {
         debug_path: Option<PathBuf>,
     ) {
         let img_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Sync + Send>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Sync + Send>;
 
         let (mut img, mut alpha) = RawImage::rgba(img);
 
@@ -77,6 +77,7 @@ impl Models {
             render_bboxes(&img, &areas, debug_path);
         }
 
+        let img = Arc::new(img);
         let textlines = self
             .get_ocr(config.ocr.ocr)
             .detect(&img, &areas, &img_processor)

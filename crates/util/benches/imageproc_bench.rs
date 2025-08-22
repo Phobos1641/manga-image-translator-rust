@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use interface_image::{dummy::DummyImageProcessor, ImageOp, Interpolation, RawImage};
 use ndarray::Array2;
-use std::hint::black_box;
+use std::{hint::black_box, sync::Arc};
 use util::imageproc::{find_contours_from_ndarray, resize_aspect_ratio};
 fn generate_test_bitmap(size: usize) -> Array2<bool> {
     Array2::from_shape_fn((size, size), |(i, j)| i == j || j == (size - i - 1))
@@ -16,7 +16,7 @@ fn bench_find_contours_from_ndarray(c: &mut Criterion) {
         channels: 3,
         data: vec![128; 640 * 480 * 3],
     };
-    let op: Box<dyn ImageOp + Send + Sync> = Box::new(DummyImageProcessor);
+    let op: Arc<dyn ImageOp + Send + Sync> = Arc::new(DummyImageProcessor);
 
     c.bench_function("resize_aspect_ratio", |b| {
         b.iter(|| {

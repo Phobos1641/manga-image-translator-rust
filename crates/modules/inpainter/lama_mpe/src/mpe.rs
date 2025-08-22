@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use fast_image_resize::{images::Image, ResizeAlg, ResizeOptions, SrcCropping};
 use interface_image::{ImageOp, Mask};
 use ndarray::{stack, Array2, Array3, Axis, Zip};
@@ -8,7 +10,7 @@ use util::{
 
 pub fn load_masked_position_encoding(
     mask: Mask,
-    op: &Box<dyn ImageOp + Send + Sync>,
+    op: &Arc<dyn ImageOp + Send + Sync>,
 ) -> (Array2<i64>, Array3<i64>) {
     let (ori_h, ori_w) = (mask.height as usize, mask.width as usize);
 

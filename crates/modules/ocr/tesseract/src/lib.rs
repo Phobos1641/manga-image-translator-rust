@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use image::{DynamicImage, GenericImageView as _, RgbImage};
-use interface_image::Mask;
+use interface_detector::textlines::Quadrilateral;
+use interface_image::{ImageOp, Mask, RawImage};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad};
 use interface_ocr::{Ocr, QuadrilateralInfo};
+use tokio::task::spawn_blocking;
 use uni_ocr::{Language, OcrEngine, OcrOptions, OcrProvider};
 
 #[derive(Default)]
@@ -54,20 +56,33 @@ impl Model for TesseractOCR {
 impl Ocr for TesseractOCR {
     async fn detect(
         &mut self,
-        image: &interface_image::RawImage,
-        areas: &[interface_detector::textlines::Quadrilateral],
-        img_processor: &Box<dyn interface_image::ImageOp + Send + Sync>,
+        image: &Arc<RawImage>,
+        areas: &[Quadrilateral],
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<interface_ocr::QuadrilateralInfo>> {
         let mut texts = vec![];
-        let grayscale = DynamicImage::from(
-            RgbImage::from_raw(image.width as u32, image.height as u32, image.data.clone())
-                .unwrap(),
-        )
-        .to_luma8();
+        let image = image.clone();
+        let grayscale = spawn_blocking(move || {
+            Arc::new(
+                DynamicImage::from(
+                    RgbImage::from_raw(image.width as u32, image.height as u32, image.data.clone())
+                        .unwrap(),
+                )
+                .to_luma8(),
+            )
+        })
+        .await?;
+
         for area in areas {
             let bbox = area.aabb();
-            let view = grayscale.view(bbox.x as u32, bbox.y as u32, bbox.w as u32, bbox.h as u32);
-            let img = Mask::from(view.to_image());
+            let grayscale = grayscale.clone();
+            let img = spawn_blocking(move || {
+                let view =
+                    grayscale.view(bbox.x as u32, bbox.y as u32, bbox.w as u32, bbox.h as u32);
+                Mask::from(view.to_image())
+            })
+            .await?;
+
             texts.push(self.detect_patch(img, area.clone(), img_processor).await?);
         }
 
@@ -78,10 +93,12 @@ impl Ocr for TesseractOCR {
         &mut self,
         sliced_image: interface_image::Mask,
         area: interface_detector::textlines::Quadrilateral,
-        _: &Box<dyn interface_image::ImageOp + Send + Sync>,
+        _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
     ) -> anyhow::Result<interface_ocr::QuadrilateralInfo> {
         let model = self.load()?;
-        let image = image::DynamicImage::from(sliced_image.to_image().unwrap());
+        let image =
+            spawn_blocking(move || image::DynamicImage::from(sliced_image.to_image().unwrap()))
+                .await?;
 
         let (result, _, _) = model.recognize_image(&image).await?;
         Ok(QuadrilateralInfo {
@@ -95,6 +112,8 @@ impl Ocr for TesseractOCR {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use interface_detector::textlines::Quadrilateral;
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
     use interface_ocr::Ocr as _;
@@ -110,8 +129,8 @@ mod tests {
             Quadrilateral::new(vec![(208, 4), (246, 4), (246, 192), (208, 192)], 1.0),
             Quadrilateral::new(vec![(76, 1788), (128, 1788), (128, 1930), (76, 1930)], 1.0),
         ];
-        let ip = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
-        let v = mocr.detect(&img, &inp, &ip).await.unwrap();
+        let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
+        let v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
         assert_eq!(v[0].text, "そうだなあ・・・");
         assert_eq!(v.len(), 2);
     }

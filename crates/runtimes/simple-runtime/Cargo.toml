@@ -23,6 +23,7 @@ interface-image.workspace = true
 interface-ocr.workspace = true
 interface-translator.workspace = true
 log.workspace = true
+
 strum = "0.27.2"
 strum_macros = "0.27.2"
 base-util.workspace = true

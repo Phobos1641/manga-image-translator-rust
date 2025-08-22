@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base_util::{
     error::{ModelLoadError, ProcessingError},
     onnx::{new_session, Providers},
@@ -94,7 +96,7 @@ impl Detector for DbNetDetector {
         &mut self,
         img: RawImage,
         options: DefaultOptions,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let session = self.load()?;
 
@@ -237,6 +239,8 @@ fn adjust_result_coordinates(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::{DbNetDetector, DefaultOptions};
     use base_util::onnx::all_providers;
     use interface_detector::{Detector, PreprocessorOptions};
@@ -254,7 +258,7 @@ mod tests {
     fn run() {
         let mut data = DbNetDetector::new(all_providers(), false);
         let cpu_image_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         data.load().expect("Failed to load data");
         data.detect(
             &RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")

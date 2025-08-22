@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use interface_image::{ImageOp, Mask, RawImage};
 use log::{debug, info};
 
@@ -6,7 +8,7 @@ use crate::{textlines::Quadrilateral, PreprocessorOptions};
 pub fn detect(
     image: &RawImage,
     options: &PreprocessorOptions,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
     callback: impl FnOnce(RawImage) -> anyhow::Result<(Vec<Quadrilateral>, Mask)>,
 ) -> anyhow::Result<Option<(Vec<Quadrilateral>, Mask)>> {
     let img_h = image.height as i64;

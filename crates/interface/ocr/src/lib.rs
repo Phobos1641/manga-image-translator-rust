@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask, RawImage};
 
@@ -5,9 +7,9 @@ use interface_image::{ImageOp, Mask, RawImage};
 pub trait Ocr {
     async fn detect(
         &mut self,
-        image: &RawImage,
+        image: &Arc<RawImage>,
         areas: &[Quadrilateral],
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<QuadrilateralInfo>>;
 
     /// image is already the sliced image
@@ -15,7 +17,7 @@ pub trait Ocr {
         &mut self,
         sliced_image: Mask,
         area: Quadrilateral,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<QuadrilateralInfo>;
 }
 

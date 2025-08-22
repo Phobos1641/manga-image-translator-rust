@@ -24,12 +24,12 @@ version = "0.8.12"
 edition = "2021"
 
 [workspace.dependencies]
-rayon = "1.10.0"
+rayon = "1.11"
 image = "0.25.6"
 log = "0.4.27"
 maplit = "1.0.2"
 base-util = { path = "crates/base-util" }
-anyhow = "1.0.98"
+anyhow = "1.0"
 util = { path = "crates/util" }
 opencv = { version = "0.95", default-features = false }
 fast_image_resize = "5.2"
@@ -43,7 +43,7 @@ dbnet = { path = "crates/modules/detector/dbnet" }
 ctd = { path = "crates/modules/detector/ctd" }
 paddle = { path = "crates/modules/detector/paddle" }
 textline-merge = { path = "crates/textline-merge" }
-ureq = "3.0.12"
+ureq = "3.1"
 tempfile = "3.20.0"
 flate2 = "1.1.2"
 tar = "0.4.44"
@@ -66,7 +66,7 @@ lama_mpe = { path = "crates/modules/inpainter/lama_mpe" }
 manga-ocr = { path = "crates/modules/ocr/manga-ocr" }
 mask-refinement = { path = "crates/mask-refinement" }
 show-image = "0.13"
-thiserror = "2.0.12"
+thiserror = "2.0"
 parking_lot = "0.12.4"
 once_cell = "1.21.3"
 rand = "0.9"
@@ -78,9 +78,9 @@ indicatif = { version = "0.18.0" }
 approx = "0.5.1"
 criterion = "0.6.0"
 half = "2.6.0"
-clap = "4.5.42"
+clap = "4.5"
 walkdir = "2.5.0"
-config = { version = "0.15.13" }
+config = { version = "0.15" }
 serde = "1.0.219"
 ab_glyph = "0.2.31"
 ordered-float = { version = "5" }

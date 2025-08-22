@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use base_util::{
     error::PreProcessingError,
@@ -163,6 +163,8 @@ impl Model for Waifu2xUpscaler {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use base_util::onnx::all_providers;
     use interface_image::{CpuImageProcessor, DimType, ImageOp, RawImage};
     use interface_upscaler::Upscaler as _;
@@ -181,13 +183,13 @@ mod tests {
         )
         .expect("Failed to load image");
         let w = image.width;
-        let img_processor = Box::new(CpuImageProcessor::default());
+        let img_processor = Arc::new(CpuImageProcessor::default());
         let upscaled = upscaler
             .upscale(
                 &image,
                 None,
                 0,
-                &(img_processor as Box<dyn ImageOp + Send + Sync>),
+                &(img_processor as Arc<dyn ImageOp + Send + Sync>),
             )
             .expect("Failed to upscale image");
         upscaled
@@ -212,13 +214,13 @@ mod tests {
         )
         .expect("Failed to load image");
         let w = image.width;
-        let img_processor = Box::new(CpuImageProcessor::default());
+        let img_processor = Arc::new(CpuImageProcessor::default());
         let upscaled = upscaler
             .upscale(
                 &image,
                 Some(100),
                 0,
-                &(img_processor as Box<dyn ImageOp + Send + Sync>),
+                &(img_processor as Arc<dyn ImageOp + Send + Sync>),
             )
             .expect("Failed to upscale image");
         assert_eq!(upscaled.width, w * upscaler.model_kind.scale() as DimType);
@@ -245,7 +247,7 @@ fn pre_process(
     patch_size: Option<usize>,
     padding: usize,
     max_batch_size: usize,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<Vec<Array4<f32>>, PreProcessingError> {
     let pad_x = (8 - image.width % 8) % 8;
     let pad_y = (8 - image.height % 8) % 8;
@@ -299,7 +301,7 @@ impl Upscaler for Waifu2xUpscaler {
         image: &RawImage,
         patch_size: Option<usize>,
         padding: usize,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> Result<RawImage, base_util::error::Error> {
         let max_batch_size = self.max_batch_size;
         let w = image.width;

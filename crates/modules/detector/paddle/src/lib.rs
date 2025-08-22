@@ -1,4 +1,4 @@
-use std::f32;
+use std::{f32, sync::Arc};
 
 use base_util::{
     error::ModelLoadError,
@@ -119,7 +119,7 @@ impl Detector for PaddleDetector {
         &mut self,
         img: RawImage,
         options: DefaultOptions,
-        _: &Box<dyn ImageOp + Send + Sync>,
+        _: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let db_net = self.load()?;
 
@@ -162,7 +162,7 @@ impl Detector for PaddleDetector {
                     .minimum_rotated_rect()
                     .unwrap()
                     .exterior()
-                    .points_iter()
+                    .points()
                     .take(4)
                     .collect();
                 let rolled: Vec<_> = corners
@@ -249,6 +249,8 @@ fn fill_polygon(mask: &mut [u8], width: usize, height: usize, poly: &[(i64, i64)
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::PaddleDetector;
     use base_util::onnx::all_providers;
     use interface_detector::{DefaultOptions, Detector as _, PreprocessorOptions};
@@ -266,7 +268,7 @@ mod tests {
     fn run() {
         let mut data = PaddleDetector::new(all_providers());
         let cpu_image_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         data.load().expect("Failed to load data");
         data.detect(
             &RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")

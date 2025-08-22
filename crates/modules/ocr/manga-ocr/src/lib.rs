@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, path::PathBuf};
+use std::{cmp::Ordering, path::PathBuf, sync::Arc};
 
 use base_util::{
     error::PreProcessingError,
@@ -16,6 +16,7 @@ use ort::{
     session::{RunOptions, Session},
     value::Tensor,
 };
+use tokio::task::spawn_blocking;
 
 pub struct MangaOCRModels {
     enc: Session,
@@ -96,20 +97,32 @@ impl Model for MangaOCR {
 impl interface_ocr::Ocr for MangaOCR {
     async fn detect(
         &mut self,
-        image: &interface_image::RawImage,
+        image: &Arc<interface_image::RawImage>,
         areas: &[Quadrilateral],
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<interface_ocr::QuadrilateralInfo>> {
         let mut texts = vec![];
-        let grayscale = DynamicImage::from(
-            RgbImage::from_raw(image.width as u32, image.height as u32, image.data.clone())
-                .unwrap(),
-        )
-        .to_luma8();
+        let image = image.clone();
+        let grayscale = spawn_blocking(move || {
+            Arc::new(
+                DynamicImage::from(
+                    RgbImage::from_raw(image.width as u32, image.height as u32, image.data.clone())
+                        .unwrap(),
+                )
+                .to_luma8(),
+            )
+        })
+        .await?;
         for area in areas {
             let bbox = area.aabb();
-            let view = grayscale.view(bbox.x as u32, bbox.y as u32, bbox.w as u32, bbox.h as u32);
-            let img = Mask::from(view.to_image());
+            let grayscale = grayscale.clone();
+            let img = tokio::task::spawn_blocking(move || {
+                let view =
+                    grayscale.view(bbox.x as u32, bbox.y as u32, bbox.w as u32, bbox.h as u32);
+                Mask::from(view.to_image())
+            })
+            .await?;
+
             texts.push(self.detect_patch(img, area.clone(), img_processor).await?);
         }
 
@@ -120,22 +133,25 @@ impl interface_ocr::Ocr for MangaOCR {
         &mut self,
         image: Mask,
         area: Quadrilateral,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<QuadrilateralInfo> {
         self.load()?;
         let sos_idnex = 2;
         let eos_index = 3;
         let special_tokens = 5;
-        let pre = preprocessor(image, img_processor)?;
+        let pre = preprocessor(image, img_processor.clone()).await?;
 
         let t = Tensor::from_array(pre)?;
         let models = self.models.as_mut().expect("loaded");
+        let run_options = RunOptions::new()?;
 
-        let out = models.enc.run(inputs! {"pixel_values" => t})?;
+        let out = models
+            .enc
+            .run_async(inputs! {"pixel_values" => t}, &run_options)?
+            .await?;
         let hs = &out[0];
 
         let mut token_ids: Vec<i64> = vec![sos_idnex];
-        let run_options = RunOptions::new()?;
         for _ in 0..self.max_length {
             let input = Array2::from_shape_vec((1, token_ids.len()), token_ids.clone())?;
             let t = Tensor::from_array(input)?;
@@ -177,21 +193,27 @@ impl interface_ocr::Ocr for MangaOCR {
     }
 }
 
-fn preprocessor(
+async fn preprocessor(
     img: Mask,
-    img_processor: &Box<dyn ImageOp + Send + Sync>,
+    img_processor: Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<Array4<f32>, PreProcessingError> {
     //"resample": 2,"size": 224
-    let resized =
-        img_processor.resize_mask(img, 224, 224, interface_image::Interpolation::Bilinear);
-    let img = resized
-        .as_nd()
-        .mapv(|pixel| pixel as f32 / 255.0 * 2.0 - 1.0);
-    Ok(stack(Axis(0), &[img.view(), img.view(), img.view()])?.insert_axis(Axis(0)))
+    spawn_blocking(move || {
+        let resized =
+            img_processor.resize_mask(img, 224, 224, interface_image::Interpolation::Bilinear);
+        let img = resized
+            .as_nd()
+            .mapv(|pixel| pixel as f32 / 255.0 * 2.0 - 1.0);
+        Ok(stack(Axis(0), &[img.view(), img.view(), img.view()])?.insert_axis(Axis(0)))
+    })
+    .await
+    .unwrap()
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use base_util::onnx::all_providers;
     use interface_detector::textlines::Quadrilateral;
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
@@ -208,8 +230,8 @@ mod tests {
             Quadrilateral::new(vec![(208, 4), (246, 4), (246, 192), (208, 192)], 1.0),
             Quadrilateral::new(vec![(76, 1788), (128, 1788), (128, 1930), (76, 1930)], 1.0),
         ];
-        let ip = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
-        let v = mocr.detect(&img, &inp, &ip).await.unwrap();
+        let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
+        let v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
         assert_eq!(v[0].text, "そうだなあ・・・");
         assert_eq!(v.len(), 2);
     }

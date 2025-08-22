@@ -3,16 +3,13 @@ use std::{
     f64::consts::PI,
 };
 
-use geo::{
-    ConvexHull, Distance as _, Euclidean, EuclideanDistance as _, MinimumRotatedRect, MultiPoint,
-    Point,
-};
+use geo::{ConvexHull, Distance as _, Euclidean, MinimumRotatedRect, MultiPoint, Point};
 use interface_ocr::QuadrilateralInfo;
 use interface_translator::{is_valuable_text, Detector, Language};
 use itertools::Itertools as _;
 use log::info;
 use once_cell::sync::Lazy;
-use ordered_float::{Float as _, OrderedFloat};
+use ordered_float::OrderedFloat;
 use petgraph::{
     algo::min_spanning_tree,
     data::Element,

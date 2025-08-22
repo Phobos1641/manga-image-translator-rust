@@ -170,7 +170,7 @@ runs:
                         raise ValueError("RECORD file not found")
 
                     if sys.platform.startswith("win"):
-                        binary_path = find_binary_in_wheel(original_wheel, 'rusty_manga_image_translator*.pyd')
+                        binary_path = find_binary_in_wheel(original_wheel, 'rusty_manga_image_translator.pyd')
                         if binary_path is None:
                           raise FileNotFoundError("Could not find the binary inside the wheel")
                         dll_list.extend(find_windows_dll(binary_path))

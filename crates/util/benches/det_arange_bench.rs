@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use interface_image::{CpuImageProcessor, ImageOp, RawImage};
 use ndarray::Array4;
 use once_cell::sync::Lazy;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use util::det_arrange::det_rearrange_forward;
 
 // Static shared db and mask
@@ -21,7 +21,7 @@ fn mocking(_: Array4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError>
 
 fn bench_find_contours_from_ndarray(c: &mut Criterion) {
     let img = RawImage::new("./imgs/01_1-optimized.png").expect("couldnt load image");
-    let cpu = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+    let cpu = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
 
     {
         *DB.lock().expect("failed to lock DB") =

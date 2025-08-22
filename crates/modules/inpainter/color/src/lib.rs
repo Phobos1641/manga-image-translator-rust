@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use interface_inpainter::{colorize_mask_area, Inpainter, InpainterOptions};
 use interface_model::Model;
@@ -52,7 +52,7 @@ impl Inpainter for ColorInpainter {
         image: interface_image::RawImage,
         mask: interface_image::Mask,
         options: InpainterOptions,
-        _: &Box<dyn interface_image::ImageOp + Send + Sync>,
+        _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
     ) -> anyhow::Result<interface_image::RawImage> {
         Ok(colorize_mask_area(image, &mask, options.color))
     }
@@ -71,7 +71,7 @@ mod tests {
             .expect("Failed to load image");
         let img = RawImage::from(img);
         let img_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         let mask: Array2<u8> = ndarray_npy::read_npy("../lama_large/mask.npy").unwrap();
         let mask = Mask::from(mask);
         let mut inp = ColorInpainter::default();

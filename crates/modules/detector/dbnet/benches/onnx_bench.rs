@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base_util::onnx::all_providers;
 use criterion::{criterion_group, criterion_main, Criterion};
 use dbnet::DbNetDetector;
@@ -13,7 +15,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let img = RawImage::new("./imgs/232264684-5a7bcf8e-707b-4925-86b0-4212382f1680.png")
         .expect("Failed to load image");
     let cpu_image_processor =
-        Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+        Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
 
     c.bench_function("load_unload", |b| {
         b.iter(|| {

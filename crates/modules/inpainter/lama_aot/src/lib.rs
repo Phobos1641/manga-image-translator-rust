@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base_util::onnx::{new_session, Providers};
 use interface_image::{ImageOp, RawImage};
 use interface_inpainter::{Inpainter, InpainterOptions};
@@ -58,7 +60,7 @@ impl Inpainter for LamaLargeInpainter {
         image: interface_image::RawImage,
         mask: interface_image::Mask,
         options: InpainterOptions,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<interface_image::RawImage> {
         let ho = image.height;
         let wo = image.width;
@@ -119,7 +121,7 @@ mod tests {
             .expect("Failed to load image");
         let img = RawImage::from(img);
         let img_processor =
-            Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+            Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         let mask: Array2<u8> = ndarray_npy::read_npy("../lama_large/mask.npy").unwrap();
         let mask = Mask::from(mask);
         let mut inp = LamaLargeInpainter::new(vec![]);

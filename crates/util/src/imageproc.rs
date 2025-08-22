@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use interface_image::{DimType, ImageOp, Interpolation, RawImage};
 use ndarray::ArrayView2;
@@ -12,7 +12,7 @@ pub fn resize_aspect_ratio(
     square_size: i64,
     interpolation: Interpolation,
     mag_ratio: f64,
-    op: &Box<dyn ImageOp + Send + Sync>,
+    op: &Arc<dyn ImageOp + Send + Sync>,
 ) -> ResizeData {
     let (height, width, _) = (img.height, img.width, img.channels);
     let mut target_size = mag_ratio * square_size as f64;
@@ -89,6 +89,8 @@ pub fn find_contours_from_ndarray(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use interface_image::CpuImageProcessor;
     use ndarray::array;
@@ -102,7 +104,7 @@ mod tests {
             data: vec![255; 300 * 150 * 3],
         };
 
-        let op: Box<dyn ImageOp + Send + Sync> = Box::new(CpuImageProcessor::default());
+        let op: Arc<dyn ImageOp + Send + Sync> = Arc::new(CpuImageProcessor::default());
         let square_size = 512;
         let mag_ratio = 1.5;
         let interpolation = Interpolation::Nearest;

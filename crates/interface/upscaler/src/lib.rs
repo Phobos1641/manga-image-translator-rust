@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use interface_image::{ImageOp, RawImage};
 
 pub trait Upscaler {
@@ -6,6 +8,6 @@ pub trait Upscaler {
         image: &RawImage,
         patch_size: Option<usize>,
         padding: usize,
-        img_processor: &Box<dyn ImageOp + Send + Sync>,
+        img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> Result<RawImage, base_util::error::Error>;
 }

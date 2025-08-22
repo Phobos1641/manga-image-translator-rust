@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base_util::error::{Error, PostProcessingError, PreProcessingError, ProcessingError};
 use interface_image::{DimType, ImageOp, Interpolation, RawImage};
 use log::info;
@@ -7,7 +9,7 @@ use rayon::prelude::*;
 fn square_pad_resize(
     img: ArrayView3<u8>,
     tgt_size: usize,
-    processor: &Box<dyn ImageOp + Send + Sync>,
+    processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> (RawImage, f64, isize, isize) {
     let shape = img.shape();
     let (mut h, w) = (shape[0] as isize, shape[1] as isize);
@@ -98,7 +100,7 @@ fn patch2batches(
     transpose: bool,
     max_batch_size: usize,
     tgt_size: u32,
-    processor: &Box<dyn ImageOp + Send + Sync>,
+    processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<(Vec<Vec<RawImage>>, Option<f64>, Option<isize>), PreProcessingError> {
     let path_lst = patch_lst
         .into_iter()
@@ -219,7 +221,7 @@ pub fn det_rearrange_forward(
     mut dbnet_batch_forward: impl FnMut(
         Array4<u8>,
     ) -> Result<(Array4<f32>, Array4<f32>), ProcessingError>,
-    processor: &Box<dyn ImageOp + Send + Sync>,
+    processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<(Array4<f32>, Array4<f32>), Error> {
     let (w, h) = (img.width, img.height);
 
@@ -417,6 +419,8 @@ fn unrearrange(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use base_util::error::ProcessingError;
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
     use ndarray::Array4;
@@ -426,7 +430,7 @@ mod tests {
     #[test]
     fn find_vertical() {
         let img = RawImage::new("./imgs/01_1-optimized.png").expect("couldnt load npy file");
-        let cpu = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+        let cpu = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         let (db, mask) = det_rearrange_forward(img, 2048, 4, mocking, &cpu).expect("failed");
         let ex_db: Array4<f32> =
             ndarray_npy::read_npy("npys/db2_v.npy").expect("couldnt load npy file");
@@ -439,7 +443,7 @@ mod tests {
     #[test]
     fn find_horizontal() {
         let img = RawImage::new("./imgs/01_1-optimized.png").expect("couldnt load npy file");
-        let cpu = Box::new(CpuImageProcessor::default()) as Box<dyn ImageOp + Send + Sync>;
+        let cpu = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
         let img = cpu.rotate_right(img);
         let (db, mask) = det_rearrange_forward(img, 2048, 4, mocking2, &cpu).expect("failed");
         let ex_db: Array4<f32> =

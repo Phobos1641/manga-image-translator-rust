@@ -17,11 +17,11 @@ pub fn generate_random_non_overlapping_rects(
     let mut total_area = 0.0;
 
     'outer: while rects.len() < count && total_area < target_area {
-        let w = rng.gen_range((width as f64 * 0.05) as i64..=(width as f64 * 0.2) as i64);
-        let h = rng.gen_range((height as f64 * 0.05) as i64..=(height as f64 * 0.2) as i64);
+        let w = rng.random_range((width as f64 * 0.05) as i64..=(width as f64 * 0.2) as i64);
+        let h = rng.random_range((height as f64 * 0.05) as i64..=(height as f64 * 0.2) as i64);
 
-        let x0 = rng.gen_range(0..=(width as i64 - w));
-        let y0 = rng.gen_range(0..=(height as i64 - h));
+        let x0 = rng.random_range(0..=(width as i64 - w));
+        let y0 = rng.random_range(0..=(height as i64 - h));
         let x1 = x0 + w;
         let y1 = y0 + h;
 

@@ -19,7 +19,7 @@ use pyo3::{exceptions::PyRuntimeError, prelude::*};
 
 #[pyclass]
 pub struct Session {
-    processor: Arc<Box<dyn ImageOp + Send + Sync>>,
+    processor: Arc<Arc<dyn ImageOp + Send + Sync>>,
     inner: CreateData,
 }
 
@@ -72,7 +72,7 @@ impl Session {
         };
         Session {
             inner: CreateData::new(providers),
-            processor: Arc::new(Box::new(CpuImageProcessor::default())),
+            processor: Arc::new(Arc::new(CpuImageProcessor::default())),
         }
     }
 
@@ -151,7 +151,7 @@ impl PyPreprocessorOptions {
 
 #[pyclass]
 pub struct PyDetector {
-    processor: Arc<Box<dyn ImageOp + Send + Sync>>,
+    processor: Arc<Arc<dyn ImageOp + Send + Sync>>,
     inner: Arc<Mutex<Box<dyn Detector + Send + Sync>>>,
 }
 
