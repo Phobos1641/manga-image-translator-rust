@@ -12,7 +12,8 @@ fn main() {
 
     #[cfg(target_os = "windows")]
     let cudnn_file = ("cudnn64_9.dll", "cudnn64_9.dll");
-
+    #[cfg(target_os = "macos")]
+    let cudnn_file = ("libiomp5.dylib", "libiomp5.dylib");
     let vendor_lib = target_dir
         .join("ctranslate2-vendor")
         .join("dyn")
@@ -40,5 +41,11 @@ fn main() {
             cudnn_file.0,
             vendor_lib.display()
         );
+    }
+    #[cfg(target_os = "macos")]
+    if std::env::var("BUILD_FOR_PYTHON").is_ok() {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+    } else {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
     }
 }

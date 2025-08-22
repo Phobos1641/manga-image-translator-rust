@@ -16,6 +16,7 @@ runs:
         cd crates/py-bindings
         if [ "${{ inputs.os }}" = "macos" ]; then
               export OPENCV_LINK_LIBS=opencv_core,opencv_imgproc
+              export BUILD_FOR_PYTHON=1
         fi
         maturin build --release
       shell: bash
@@ -57,6 +58,7 @@ runs:
         import fnmatch
         import os
         import subprocess
+        import tempfile
 
 
         def find_dlls() -> list[Path]:
@@ -82,13 +84,15 @@ runs:
                 return []
 
         def find_binary_in_wheel(wheel: WheelFile, pattern: str) -> Optional[Path]:
-          for name in wheel.namelist():
-            if name.endswith(pattern):
-              tmp_path = Path("/tmp") / Path(name).name
-              with wheel.open(name) as src, open(tmp_path, "wb") as dst:
-                dst.write(src.read())
-              return tmp_path
-          return None
+            for name in wheel.namelist():
+                if name.endswith(pattern):
+                    # use a proper temp dir
+                    tmp_dir = Path(tempfile.gettempdir())
+                    tmp_path = tmp_dir / Path(name).name
+                    with wheel.open(name) as src, open(tmp_path, "wb") as dst:
+                        dst.write(src.read())
+                    return tmp_path
+            return None
 
         def find_dll_on_path_or_target(dll_name: str) -> Optional[Path]:
             target_dir = Path("target") / "release"
