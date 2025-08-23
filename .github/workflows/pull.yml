@@ -29,6 +29,13 @@ jobs:
     runs-on: ${{ matrix.platform.runs-on }}
 
     steps:
+      - name: Checkout only .github files
+        if: matrix.platform.name == 'linux-x86_64'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+          sparse-checkout-cone-mode: false
       - name: Setup Linux
         if: matrix.platform.name == 'linux-x86_64' || matrix.platform.name == 'linux-arm64'
         uses: ./.github/actions/setup-linux
