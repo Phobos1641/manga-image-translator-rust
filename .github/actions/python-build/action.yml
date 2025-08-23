@@ -24,13 +24,14 @@ runs:
     - name: Install wheel package
       run: pip install wheel
       shell: bash
+    - name: Log files
+      if: ${{ inputs.os == 'windows' }}
+      shell: cmd
+      run: tree ./target /f /a
     - name: Install pefile
       shell: bash
       if: ${{ inputs.os == 'windows' }}
-      run: |
-        ls target/release/
-        ls target/release/ctranslate2-vendor/dyn
-        pip install pefile
+      run: pip install pefile
     - name: Bundle OpenCV only
       if: ${{ inputs.os == 'macos' }}
       shell: bash
