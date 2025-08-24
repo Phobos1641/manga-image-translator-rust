@@ -34,8 +34,11 @@ jobs:
     runs-on: ${{ matrix.platform.runs-on }}
 
     steps:
+      - name: Checkout code
+        if: matrix.platform.name == 'linux-arm64'
+        uses: actions/checkout@v4
       - name: Checkout only .github files
-        if: matrix.platform.os == 'linux'
+        if: matrix.platform.name == 'linux-x86_64'
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -47,9 +50,8 @@ jobs:
         with:
           runs-on: ${{ matrix.platform.runs-on }}
       - name: Checkout code
+        if: matrix.platform.name == 'linux-x86_64'
         uses: actions/checkout@v4
-        with:
-          clean: true
       - name: Setup macOS
         if: matrix.platform.name == 'macos-arm64' || matrix.platform.name == 'macos-x86_64'
         uses: ./.github/actions/setup-macos
