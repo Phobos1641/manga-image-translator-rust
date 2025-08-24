@@ -9,9 +9,9 @@
   - [ ] ysg
   - [ ] ~~craft~~
 - [ ] ocr
-  - [ ] [windows](https://lib.rs/crates/uni-ocr)
-  - [ ] [macos](https://lib.rs/crates/uni-ocr)
-  - [ ] [tesseract](https://lib.rs/crates/uni-ocr)
+  - [x] [windows](https://lib.rs/crates/uni-ocr)
+  - [x] [macos](https://lib.rs/crates/uni-ocr)
+  - [x] [tesseract](https://lib.rs/crates/uni-ocr)
   - [ ] [oneocr](https://crates.io/crates/oneocr-rs)
   - [ ] [paddle](https://github.com/mg-chao/paddle-ocr-rs)
   - [ ] 32px
@@ -32,12 +32,12 @@
   - [ ] none
   - [ ] mc2
 - [ ] renderer
-  - [ ] struct
+  - [x] struct
   - [ ] gimp
   - [ ] [pdf](https://crates.io/crates/oxidize-pdf)
   - [ ] [psd](https://crates.io/crates/psd)
   - [ ] html
-  - [ ] png/jpeg/qoi
+  - [x] png/jpeg/qoi
 - [x] upscaler
   - [x] anime4k
   - [x] waifu2x
