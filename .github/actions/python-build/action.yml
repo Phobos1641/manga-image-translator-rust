@@ -46,6 +46,25 @@ runs:
       if: ${{ inputs.os != 'macos' }}
       shell: bash
       run: |
+        cat > repack.sh << 'EOF'
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        WHL="$1"
+
+        TMPDIR=$(mktemp -d)
+        trap 'rm -rf "$TMPDIR"' EXIT
+
+        unzip -q "$WHL" -d "$TMPDIR"
+
+        python -m wheel pack "$TMPDIR" --dest "$(dirname "$WHL")"
+        NEW_WHL=$(ls -t "$(dirname "$WHL")"/*.whl | head -n1)
+        mv -f "$NEW_WHL" "$WHL"
+
+        EOF
+
+        chmod +x repack.sh
+
         cat > inject_dll.py << 'EOF'
         from wheel.wheelfile import WheelFile
         from pathlib import Path
@@ -218,4 +237,6 @@ runs:
     - name: Inject DLL into wheel
       if: ${{ inputs.os != 'macos' }}
       shell: bash
-      run: python inject_dll.py
+      run: |
+        python inject_dll.py
+        find . -name "*.whl" -exec ./repack.sh {} \;

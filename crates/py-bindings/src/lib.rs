@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use base_util::onnx::{all_providers, Providers};
 use dbnet::DbNetDetector;
@@ -8,7 +8,7 @@ use interface_detector::{DefaultOptions, Detector, PreprocessorOptions};
 use interface_image::{CpuImageProcessor, ImageOp, RawImage};
 use interface_model::CreateData;
 use interface_ocr::QuadrilateralInfo;
-use interface_translator::LangIdDetector;
+use interface_translator::{LangIdDetector, Language, M2M100Size, Translator};
 use numpy::{
     ndarray::{Array2, Array3},
     IntoPyArray as _, PyArray2, PyArray3, PyArrayMethods, PyReadonlyArray3,
@@ -16,6 +16,19 @@ use numpy::{
 use paddle::PaddleDetector;
 use parking_lot::Mutex;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use tokio::runtime::{Builder, Runtime};
+
+static TOKIO_RT: OnceLock<Runtime> = OnceLock::new();
+
+fn get_runtime() -> &'static Runtime {
+    TOKIO_RT.get_or_init(|| {
+        Builder::new_multi_thread()
+            .worker_threads(8)
+            .enable_all()
+            .build()
+            .unwrap()
+    })
+}
 
 #[pyclass]
 pub struct Session {
@@ -73,6 +86,121 @@ impl Session {
         Session {
             inner: CreateData::new(providers),
             processor: Arc::new(Arc::new(CpuImageProcessor::default())),
+        }
+    }
+
+    fn jparacrawl_translator(&self, cuda: bool) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::JParaCrawlTranslator::new(
+                    false,
+                    cuda,
+                    Default::default(),
+                    interface_translator::JParaCrawlSize::Base,
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn youdao_translator(&self, app_key: String, app_secret: String) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::YoudaoTranslator::new(
+                    app_key, app_secret,
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn papago_translator<'py>(&self, py: Python<'py>) -> PyTranslator {
+        let v = py.allow_threads(|| {
+            get_runtime()
+                .block_on(interface_translator::PapagoTranslator::new(false))
+                .unwrap()
+        });
+        PyTranslator {
+            inner: Arc::new(Mutex::new(Box::new(v) as Box<dyn Translator + Send + Sync>)),
+        }
+    }
+    fn nllb_translator(&self, cuda: bool) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::NLLBTranslator::new(
+                    cuda,
+                    Default::default(),
+                    interface_translator::NLLBSize::SmallDistilled,
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn m2m100_translator(&self, cuda: bool) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::M2M100Translator::new(
+                    cuda,
+                    Default::default(),
+                    M2M100Size::Small,
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn my_memory_translator(&self) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::MyMemoryTranslator::new())
+                    as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn mbart50_translator(&self, cuda: bool) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::MBart50Translator::new(
+                    cuda,
+                    Default::default(),
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn google_translator(&self, api_key: String) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::GoogleTranslator::new(api_key))
+                    as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn deepl_translator(&self, auth: String) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::DeeplTranslator::new(auth))
+                    as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+    fn caiyun_translator(&self, token: String, request_id: String) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::CaiyunTranslator::new(
+                    token, request_id,
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
+        }
+    }
+
+    fn sugoi_translator(&self, cuda: bool) -> PyTranslator {
+        PyTranslator {
+            inner: Arc::new(Mutex::new(
+                Box::new(interface_translator::SugoiTranslator::new(
+                    cuda,
+                    Default::default(),
+                )) as Box<dyn Translator + Send + Sync>,
+            )),
         }
     }
 
@@ -153,6 +281,47 @@ impl PyPreprocessorOptions {
 pub struct PyDetector {
     processor: Arc<Arc<dyn ImageOp + Send + Sync>>,
     inner: Arc<Mutex<Box<dyn Detector + Send + Sync>>>,
+}
+
+#[pyclass]
+pub struct PyTranslator {
+    inner: Arc<Mutex<Box<dyn Translator + Send + Sync>>>,
+}
+#[pymethods]
+impl PyTranslator {
+    pub fn translate<'py>(
+        &self,
+        py: Python<'py>,
+        input: Vec<String>,
+        from: &str,
+        to: &str,
+    ) -> Vec<String> {
+        py.allow_threads(|| {
+            let mut t = self.inner.lock();
+            if t.local() {
+                t.translator_mut()
+                    .as_blocking()
+                    .unwrap()
+                    .translate_vec(
+                        &input,
+                        None,
+                        Language::from_name(from).unwrap(),
+                        &Language::from_name(to).unwrap(),
+                    )
+                    .unwrap()
+            } else {
+                let rt = get_runtime();
+                rt.block_on(t.translator().as_async().unwrap().translate_vec(
+                    &input,
+                    None,
+                    Some(Language::from_name(from).unwrap()),
+                    &Language::from_name(to).unwrap(),
+                ))
+                .unwrap()
+                .text
+            }
+        })
+    }
 }
 
 #[pyclass]
@@ -282,6 +451,18 @@ impl PyDetector {
 
 #[pymodule]
 fn rusty_manga_image_translator(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let red = "\x1b[31m";
+    let yellow = "\x1b[33m";
+    let reset = "\x1b[0m";
+
+    // println!(
+    //     "{}⚠️  Warning: You are using the experimental Python version of this project.{}",
+    //     red, reset
+    // );
+    // println!(
+    //         "{}This version is unstable and may break frequently. Please switch to the Rust rewrite for reliability! https://github.com/frederik-uni/manga-image-translator-rust{}",
+    //         yellow, reset
+    //     );
     m.add_class::<Session>()?;
     m.add_class::<PyDetector>()?;
     m.add_class::<PyImage>()?;

@@ -151,15 +151,18 @@ runs:
 
     - name: Copy ONNX Runtime providers
       shell: bash
+      env:
+        RUNNER_OS: ${{ inputs.os }}
       run: |
+        $RUNNER_OS=inputs.os
         case "$RUNNER_OS" in
-          Windows)
+          windows)
             pattern="onnxruntime_providers_*.dll"
             ;;
-          macOS)
+          macos)
             pattern="libonnxruntime_providers_*.dylib"
             ;;
-          Linux)
+          linux)
             pattern="libonnxruntime_providers_*.so"
             ;;
         esac
