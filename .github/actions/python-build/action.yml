@@ -24,10 +24,6 @@ runs:
     - name: Install wheel package
       run: pip install wheel
       shell: bash
-    - name: Log files
-      if: ${{ inputs.os == 'windows' }}
-      shell: cmd
-      run: tree ./target /f /a
     - name: Install pefile
       shell: bash
       if: ${{ inputs.os == 'windows' }}
@@ -38,7 +34,6 @@ runs:
       run: |
         pip install wheel delocate
         mkdir -p target/wheels/fixed
-        ls target/release/
         export DYLD_LIBRARY_PATH="$(pwd)/target/release/ctranslate2-vendor/dyn:$DYLD_LIBRARY_PATH"
         for whl in target/wheels/rusty_manga_image_translator-*.whl; do
         delocate-wheel -w target/wheels/fixed/ "$whl"

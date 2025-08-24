@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout only .github files
-        if: matrix.platform.name == 'linux-x86_64'
+        if: matrix.platform.os == 'linux'
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
@@ -76,7 +76,7 @@ jobs:
       - name: Tests & Building
         uses: ./.github/actions/cargo
         with:
-          test: true
+          test: matrix.platform.os != 'windows'
           runs-on: ${{ matrix.platform.runs-on }}
           os: ${{  matrix.platform.os }}
           name: ${{ matrix.platform.name }}

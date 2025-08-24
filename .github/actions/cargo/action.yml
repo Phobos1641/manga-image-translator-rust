@@ -2,6 +2,8 @@ name: Run cargo
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_TERM_PROGRESS: true
+  CARGO_MESSAGE_FORMAT: human
 
 inputs:
   name:
@@ -59,7 +61,9 @@ runs:
         fi
     - name: Log files
       shell: bash
-      run: ls target/release
+      run: |
+        sleep 1
+        ls target/release
     - name: Prepare artifacts
       shell: bash
       run: |
