@@ -1,6 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
 use base_util::onnx::{all_providers, Providers};
+use ctd::CtdDetector;
 use dbnet::DbNetDetector;
 
 use interface_detector::textlines::Quadrilateral;
@@ -201,6 +202,16 @@ impl Session {
                     Default::default(),
                 )) as Box<dyn Translator + Send + Sync>,
             )),
+        }
+    }
+
+    fn ctd_detector(&self) -> PyDetector {
+        PyDetector {
+            inner: Arc::new(Mutex::new(
+                Box::new(CtdDetector::new(self.inner.providers.clone()))
+                    as Box<dyn Detector + Send + Sync>,
+            )),
+            processor: self.processor.clone(),
         }
     }
 

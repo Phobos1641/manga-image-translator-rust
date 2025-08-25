@@ -13,6 +13,7 @@ dbnet.workspace = true
 base-util.workspace = true
 parking_lot = "0.12"
 paddle.workspace = true
+ctd.workspace = true
 textline-merge.workspace = true
 interface-translator.workspace = true
 interface-ocr.workspace = true
