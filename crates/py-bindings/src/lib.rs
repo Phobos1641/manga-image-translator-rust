@@ -90,14 +90,17 @@ impl Session {
         }
     }
 
-    fn jparacrawl_translator(&self, cuda: bool) -> PyTranslator {
+    fn jparacrawl_translator(&self, cuda: bool, big: bool) -> PyTranslator {
         PyTranslator {
             inner: Arc::new(Mutex::new(
                 Box::new(interface_translator::JParaCrawlTranslator::new(
                     false,
                     cuda,
                     Default::default(),
-                    interface_translator::JParaCrawlSize::Base,
+                    match big {
+                        true => interface_translator::JParaCrawlSize::Large,
+                        false => interface_translator::JParaCrawlSize::Base,
+                    },
                 )) as Box<dyn Translator + Send + Sync>,
             )),
         }
@@ -123,25 +126,33 @@ impl Session {
             inner: Arc::new(Mutex::new(Box::new(v) as Box<dyn Translator + Send + Sync>)),
         }
     }
-    fn nllb_translator(&self, cuda: bool) -> PyTranslator {
+    fn nllb_translator(&self, cuda: bool, big: bool) -> PyTranslator {
         PyTranslator {
             inner: Arc::new(Mutex::new(
                 Box::new(interface_translator::NLLBTranslator::new(
                     cuda,
                     Default::default(),
-                    interface_translator::NLLBSize::SmallDistilled,
+                    if big {
+                        interface_translator::NLLBSize::Large
+                    } else {
+                        interface_translator::NLLBSize::SmallDistilled
+                    },
                 )) as Box<dyn Translator + Send + Sync>,
             )),
         }
     }
 
-    fn m2m100_translator(&self, cuda: bool) -> PyTranslator {
+    fn m2m100_translator(&self, cuda: bool, big: bool) -> PyTranslator {
         PyTranslator {
             inner: Arc::new(Mutex::new(
                 Box::new(interface_translator::M2M100Translator::new(
                     cuda,
                     Default::default(),
-                    M2M100Size::Small,
+                    if big {
+                        M2M100Size::Large
+                    } else {
+                        M2M100Size::Small
+                    },
                 )) as Box<dyn Translator + Send + Sync>,
             )),
         }
