@@ -273,6 +273,7 @@ impl PngRenderer {
             0.0,
             0.0,
             BORDER_DEFAULT,
+            #[cfg(not(target_os = "linux"))]
             opencv::core::AlgorithmHint::ALGO_HINT_DEFAULT,
         )
         .unwrap();
