@@ -24,4 +24,4 @@ runs:
         df -h
         sudo apt-get update
         sudo apt-get install -y pkg-config libssl-dev libopencv-dev clang libclang-dev libfontconfig-dev
-        sudo apt remove 'libopencv*-dbg'
+        sudo rm /usr/lib/x86_64-linux-gnu/libopencv*.so.*d
