@@ -99,7 +99,7 @@ impl ImageOp for DummyImageProcessor {
 
     fn resize(
         &self,
-        _: super::RawImage,
+        _: &super::RawImage,
         width: super::DimType,
         height: super::DimType,
         _: super::Interpolation,
@@ -112,7 +112,7 @@ impl ImageOp for DummyImageProcessor {
         }
     }
 
-    fn resize_mask(&self, _: Mask, width: usize, height: usize, _: super::Interpolation) -> Mask {
+    fn resize_mask(&self, _: &Mask, width: usize, height: usize, _: super::Interpolation) -> Mask {
         Mask {
             width: width as DimType,
             height: height as DimType,

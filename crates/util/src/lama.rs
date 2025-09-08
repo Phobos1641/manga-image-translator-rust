@@ -3,7 +3,7 @@ use std::sync::Arc;
 use interface_image::{DimType, ImageOp, Mask, RawImage};
 
 pub fn resize_keep_aspect(
-    img: RawImage,
+    mut img: RawImage,
     size: u16,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> RawImage {
@@ -12,7 +12,7 @@ pub fn resize_keep_aspect(
     let new_height = img.height as f64 * ratio;
 
     img_processor.resize(
-        img,
+        &mut img,
         new_width as DimType,
         new_height as DimType,
         interface_image::Interpolation::BilinearExact,
@@ -20,7 +20,7 @@ pub fn resize_keep_aspect(
 }
 
 pub fn resize_keep_aspect_mask(
-    img: Mask,
+    mut img: Mask,
     size: u16,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Mask {
@@ -29,7 +29,7 @@ pub fn resize_keep_aspect_mask(
     let new_height = img.height as f64 * ratio;
 
     img_processor.resize_mask(
-        img,
+        &mut img,
         new_width as usize,
         new_height as usize,
         interface_image::Interpolation::BilinearExact,

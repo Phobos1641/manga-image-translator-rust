@@ -9,3 +9,13 @@ interface-image.workspace = true
 interface-detector.workspace = true
 opencv = { workspace = true, features = ["imgproc"] }
 ndarray.workspace = true
+geo.workspace = true
+ordered-float.workspace = true
+densecrf.workspace = true
+argminmax = { workspace = true, default-features = false, features = [
+    "ndarray",
+    "float",
+] }
+
+[dev-dependencies]
+ndarray-npy.workspace = true

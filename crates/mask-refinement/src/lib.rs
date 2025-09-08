@@ -1,5 +1,6 @@
 mod bubble;
 mod expand;
+mod fill_text;
 
 use std::{borrow::Cow, i32, sync::Arc};
 
@@ -22,6 +23,7 @@ use crate::{
         expand_right_quad, expand_right_to_connect, expand_top_quad, expand_top_to_connect,
         shrink_quad_right, shrink_quad_top,
     },
+    fill_text::complete_mask,
 };
 
 pub enum Method {
@@ -66,12 +68,14 @@ pub fn dispatch(
     raw_mask: &Mask,
     method: Method,
     ignore_bubble: u8,
+    dilation_offset: f64,
+    kernel_size: i32,
     furi: bool,
     image_op: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Mask {
-    let raw_mask = if furi {
+    let raw_mask_ = if furi {
         Cow::Owned(image_op.resize_mask(
-            raw_mask.clone(),
+            raw_mask,
             raw_img.width as usize,
             raw_img.height as usize,
             interface_image::Interpolation::Nearest,
@@ -80,28 +84,55 @@ pub fn dispatch(
         Cow::Borrowed(raw_mask)
     };
     let size = (raw_img.width, raw_img.height);
-    // let scale_factor = ((raw_mask.height as f64 - raw_mask.height as f64 / 3.0)
-    //     / raw_mask.height as f64)
-    //     .clamp(0.5, 1.0);
-    // img_resized = cv2.resize(raw_image, (int(raw_image.shape[1] * scale_factor), int(raw_image.shape[0] * scale_factor)), interpolation = cv2.INTER_LINEAR)
-    // mask_resized = cv2.resize(raw_mask, (int(raw_image.shape[1] * scale_factor), int(raw_image.shape[0] * scale_factor)), interpolation = cv2.INTER_LINEAR)
 
-    // mask_resized[mask_resized > 0] = 255
     let textlines = text_regions
         .iter()
-        .flat_map(|v| expand(furi, &v.lines, raw_mask.as_ref()))
+        .flat_map(|v| expand(furi, &v.lines, raw_mask_.as_ref()))
         .collect::<Vec<_>>();
 
     let final_mask = match method {
         Method::FitText => {
-            // complete_mask(
-            //     img_resized,
-            //     mask_resized,
-            //     textlines,
-            //     dilation_offset = dilation_offset,
-            //     kernel_size = kernel_size,
-            // );
-            todo!()
+            let scale_factor = ((raw_mask.height as f64 - raw_mask.height as f64 / 3.0)
+                / raw_mask.height as f64)
+                .clamp(0.5, 1.0);
+            let n_w = (raw_img.width as f64 * scale_factor) as u16;
+            let n_h = (raw_img.height as f64 * scale_factor) as u16;
+            let mut img_resized =
+                image_op.resize(raw_img, n_w, n_h, interface_image::Interpolation::Nearest);
+            let img_resized = img_resized.as_opencv_mut_mat().unwrap();
+            let mut mask_resized = image_op.resize_mask(
+                raw_mask,
+                n_w as usize,
+                n_h as usize,
+                interface_image::Interpolation::Nearest,
+            );
+            let mask_resized = mask_resized.as_opencv_mut_mat().unwrap();
+
+            let final_mask = complete_mask(
+                textlines,
+                img_resized,
+                mask_resized,
+                1e-2,
+                dilation_offset,
+                kernel_size,
+            );
+            match final_mask {
+                Some(mask) => {
+                    let mut mask = Mask::from(mask);
+                    let mut mask = image_op
+                        .resize_mask(
+                            &mut mask,
+                            size.0 as usize,
+                            size.1 as usize,
+                            interface_image::Interpolation::Nearest,
+                        )
+                        .to_nd();
+                    mask.mapv_inplace(|v| if v > 0 { 255 } else { 0 });
+                    let mask = Mask::from(mask);
+                    mask.data
+                }
+                None => vec![0; size.0 as usize * size.1 as usize],
+            }
         }
         Method::FillMask => complete_mask_fill(
             (size.0 as i64, size.1 as i64),

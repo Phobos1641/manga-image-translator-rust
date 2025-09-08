@@ -148,8 +148,10 @@ impl Models {
             &textblocks,
             &img,
             &mask,
-            mask_refinement::Method::FillMask,
+            mask_refinement::Method::FitText,
             config.inpainter.ignore_bubble.unwrap_or_default(),
+            0.0,
+            3,
             config.inpainter.furi,
             &img_processor,
         );

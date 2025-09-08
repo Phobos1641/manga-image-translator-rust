@@ -1,3 +1,5 @@
+use ndarray::Array2;
+
 unsafe extern "C" {
     unsafe fn run_densecrf(
         unary: *const f32,
@@ -11,12 +13,13 @@ unsafe extern "C" {
 }
 
 pub fn densecrf(
-    unary: Vec<f32>,
+    unary: &[f32],
     width: u32,
     height: u32,
     n_classes: u32,
     image: &[u8],
-) -> Vec<f32> {
+    iterations: i32,
+) -> Array2<f32> {
     let width = width as i32;
     let height = height as i32;
     let n_classes = n_classes as i32;
@@ -29,9 +32,13 @@ pub fn densecrf(
             height,
             n_classes,
             image.as_ptr(),
-            5,
+            iterations,
             out_probs.as_mut_ptr(),
         );
     };
-    out_probs
+    Array2::from_shape_vec(
+        (n_classes as usize, width as usize * height as usize),
+        out_probs,
+    )
+    .unwrap()
 }

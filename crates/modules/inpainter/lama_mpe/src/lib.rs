@@ -83,7 +83,7 @@ impl Inpainter for LamaLargeInpainter {
             .insert_axis(Axis(0))
             .insert_axis(Axis(0));
         let image = image
-            .to_ndarray()
+            .as_ndarray()
             .unwrap()
             .permuted_axes((2, 0, 1))
             .mapv(|v| v as f32 / 255.0)
@@ -108,7 +108,7 @@ impl Inpainter for LamaLargeInpainter {
         }
         if h != ho || w != wo {
             img_inpainted = img_processor.resize(
-                img_inpainted,
+                &mut img_inpainted,
                 wo,
                 ho,
                 interface_image::Interpolation::Bicubic,

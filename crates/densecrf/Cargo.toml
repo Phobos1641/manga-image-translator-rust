@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+ndarray.workspace = true
 
 [build-dependencies]
 cc = "1.2"

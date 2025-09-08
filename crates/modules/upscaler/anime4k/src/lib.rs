@@ -95,7 +95,7 @@ impl Upscaler for Anime4KUpscaler {
     ) -> Result<RawImage, base_util::error::Error> {
         let image = image
             .clone()
-            .to_ndarray()
+            .as_ndarray()
             .unwrap()
             .mapv(|v| f16::from_f32(v as f32 / 255.0))
             .permuted_axes((2, 0, 1))

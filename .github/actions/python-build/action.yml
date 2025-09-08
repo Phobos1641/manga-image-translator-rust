@@ -15,7 +15,7 @@ runs:
       run: |
         cd crates/py-bindings
         if [ "${{ inputs.os }}" = "macos" ]; then
-              export OPENCV_LINK_LIBS=opencv_core,opencv_imgproc
+              export OPENCV_LINK_LIBS=opencv_core,opencv_imgproc,opencv_calib3d
               export BUILD_FOR_PYTHON=1
         fi
         maturin build --release

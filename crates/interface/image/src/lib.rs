@@ -14,8 +14,11 @@ pub use cpu::CpuImageProcessor;
 #[cfg(feature = "gpu")]
 pub use gpu::GpuImageProcessor;
 use image::{DynamicImage, RgbaImage};
-use ndarray::{Array, Array2, Dim};
-use opencv::core::{Mat, MatTraitConst as _};
+use ndarray::{Array2, ArrayView, ArrayView2, ArrayView3, Dim};
+use opencv::{
+    boxed_ref::{BoxedRef, BoxedRefMut},
+    core::{Mat, MatTrait, MatTraitConst as _},
+};
 pub use rayon::RayonImageProcessor;
 
 #[cfg(feature = "debug")]
@@ -25,7 +28,7 @@ pub type DimType = u16;
 #[cfg(not(feature = "u16-dims"))]
 pub type DimType = u32;
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Clone)]
 /// A rgb image
 pub struct RawImage {
     pub data: Vec<u8>,
@@ -33,6 +36,46 @@ pub struct RawImage {
     pub height: DimType,
     /// Always 3
     pub channels: u8,
+}
+
+#[derive(PartialEq)]
+pub struct RawImageView<'a> {
+    pub data: &'a [u8],
+    pub width: DimType,
+    pub height: DimType,
+    /// Always 3
+    pub channels: u8,
+}
+
+impl<'a> From<&'a RawImage> for RawImageView<'a> {
+    fn from(img: &'a RawImage) -> Self {
+        RawImageView {
+            data: &img.data,
+            width: img.width,
+            height: img.height,
+            channels: img.channels,
+        }
+    }
+}
+
+impl<'a> RawImageView<'a> {
+    pub fn new(data: &'a [u8], width: DimType, height: DimType, channels: u8) -> Self {
+        Self {
+            data,
+            width,
+            height,
+            channels,
+        }
+    }
+
+    pub fn clone(&self) -> RawImage {
+        RawImage {
+            data: self.data.to_vec(),
+            width: self.width,
+            height: self.height,
+            channels: self.channels,
+        }
+    }
 }
 
 fn blend_pixel3(s_rgb: [u8; 3], o_rgba: [u8; 4]) -> [u8; 3] {
@@ -269,18 +312,24 @@ impl Mask {
     pub fn get(&self, x: usize, y: usize) -> u8 {
         self.data[x + y * self.width as usize]
     }
-    pub fn as_opencv_mat<'a>(&'a self) -> Result<Mat, opencv::Error> {
+    pub fn as_opencv_mat<'a>(&'a self) -> Result<BoxedRef<'a, Mat>, opencv::Error> {
         let mat = Mat::from_slice(&self.data)?;
-        let mat = mat.reshape(1, self.height as i32)?.clone_pointee();
+        let mat = mat.reshape(1, self.height as i32)?;
+        let mat: BoxedRef<'a, Mat> = unsafe { std::mem::transmute(mat) };
+        Ok(mat)
+    }
+    pub fn as_opencv_mut_mat<'a>(&'a mut self) -> Result<BoxedRefMut<'a, Mat>, opencv::Error> {
+        let mut mat = Mat::from_slice_mut(&mut self.data)?;
+        let mat = mat.reshape_mut(1, self.height as i32)?;
+        let mat: BoxedRefMut<'a, Mat> = unsafe { std::mem::transmute(mat) };
         Ok(mat)
     }
 
-    pub fn as_nd(&self) -> Array2<u8> {
-        Array2::from_shape_vec(
-            (self.height as usize, self.width as usize),
-            self.data.clone(),
-        )
-        .unwrap()
+    pub fn as_nd(&self) -> ArrayView2<'_, u8> {
+        ArrayView2::from_shape((self.height as usize, self.width as usize), &self.data).unwrap()
+    }
+    pub fn to_nd(self) -> Array2<u8> {
+        Array2::from_shape_vec((self.height as usize, self.width as usize), self.data).unwrap()
     }
 }
 
@@ -383,22 +432,28 @@ impl Mask {
 }
 
 impl RawImage {
-    pub fn to_ndarray(self) -> Result<Array<u8, Dim<[usize; 3]>>, ndarray::ShapeError> {
-        Array::from_shape_vec(
+    pub fn as_ndarray<'a>(&'a self) -> Result<ArrayView3<'a, u8>, ndarray::ShapeError> {
+        ArrayView::from_shape(
             Dim([
                 self.height as usize,
                 self.width as usize,
                 self.channels as usize,
             ]),
-            self.data.clone(),
+            &self.data,
         )
     }
 
-    pub fn as_opencv_mat<'a>(&'a self) -> Result<Mat, opencv::Error> {
+    pub fn as_opencv_mat<'a>(&'a self) -> Result<BoxedRef<'a, Mat>, opencv::Error> {
         let mat = Mat::from_slice(&self.data)?;
-        let mat = mat
-            .reshape(self.channels as i32, self.height as i32)?
-            .clone_pointee();
+        let mat = mat.reshape(self.channels as i32, self.height as i32)?;
+        let mat: BoxedRef<'a, Mat> = unsafe { std::mem::transmute(mat) };
+        Ok(mat)
+    }
+
+    pub fn as_opencv_mut_mat<'a>(&'a mut self) -> Result<BoxedRefMut<'a, Mat>, opencv::Error> {
+        let mut mat = Mat::from_slice_mut(&mut self.data)?;
+        let mat = mat.reshape_mut(self.channels as i32, self.height as i32)?;
+        let mat: BoxedRefMut<'a, Mat> = unsafe { std::mem::transmute(mat) };
         Ok(mat)
     }
 
@@ -462,14 +517,14 @@ pub trait ImageOp {
     fn transpose(&self, image: RawImage) -> RawImage;
     fn resize(
         &self,
-        image: RawImage,
+        image: &RawImage,
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
     ) -> RawImage;
     fn resize_mask(
         &self,
-        image: Mask,
+        image: &Mask,
         width: usize,
         height: usize,
         interpolation: Interpolation,

@@ -8,7 +8,7 @@ use opencv::{
 };
 
 pub fn render_bboxes(img: &RawImage, qu: &[Quadrilateral], path: &PathBuf) {
-    let mut img = img.as_opencv_mat().unwrap();
+    let mut img = img.as_opencv_mat().unwrap().clone_pointee();
     for q in qu {
         let pts = q
             .pts()

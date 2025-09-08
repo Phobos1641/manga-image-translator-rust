@@ -1,7 +1,7 @@
 use base_util::error::ProcessingError;
 use criterion::{criterion_group, criterion_main, Criterion};
 use interface_image::{CpuImageProcessor, ImageOp, RawImage};
-use ndarray::Array4;
+use ndarray::{Array4, ArrayView4};
 use once_cell::sync::Lazy;
 use std::sync::{Arc, Mutex};
 use util::det_arrange::det_rearrange_forward;
@@ -10,7 +10,7 @@ use util::det_arrange::det_rearrange_forward;
 static DB: Lazy<Mutex<Option<Array4<f32>>>> = Lazy::new(|| Mutex::new(None));
 static MASK: Lazy<Mutex<Option<Array4<f32>>>> = Lazy::new(|| Mutex::new(None));
 
-fn mocking(_: Array4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
+fn mocking(_: ArrayView4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
     let db = DB.lock().expect("mutex error");
     let mask = MASK.lock().expect("mutex error");
     Ok((

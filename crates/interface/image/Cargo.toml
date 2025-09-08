@@ -51,3 +51,6 @@ harness = false
 [[bench]]
 name = "rotate_left_mask_bench"
 harness = false
+
+[patch.crates-io]
+opencv = { git = "https://github.com/twistedfall/opencv-rust" }

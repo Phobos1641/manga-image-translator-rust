@@ -8,7 +8,7 @@ use opencv::{
 };
 
 pub fn resize_aspect_ratio(
-    img: RawImage,
+    mut img: RawImage,
     square_size: i64,
     interpolation: Interpolation,
     mag_ratio: f64,
@@ -25,7 +25,12 @@ pub fn resize_aspect_ratio(
         f64::round(width as f64 * ratio) as i32,
     );
 
-    let proc = op.resize(img, target_w as DimType, target_h as DimType, interpolation);
+    let proc = op.resize(
+        &mut img,
+        target_w as DimType,
+        target_h as DimType,
+        interpolation,
+    );
 
     const MULT: i32 = 256;
 

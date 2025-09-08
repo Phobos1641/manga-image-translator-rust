@@ -38,7 +38,8 @@ pub fn refine_mask(
                 .to_image(),
         );
         let im_gray = im.clone().into_luma8();
-        let im_gray = Mask::from(im_gray).as_nd();
+        let im_gray = Mask::from(im_gray);
+        let mut im_gray = im_gray.as_nd();
         let msk = mask.as_nd();
         let msk = msk.slice(s![by1 as usize..by2 as usize, bx1 as usize..bx2 as usize]);
         let mut mask_list = get_topk_masklist(im_gray, &msk)?;
@@ -76,7 +77,7 @@ fn gray_image_to_ndarray(img: &GrayImage) -> Result<Array2<u8>, PostProcessingEr
 }
 
 fn extract_candidates(
-    im_grey: &Array2<u8>,
+    im_grey: &ArrayView2<u8>,
     mask: &ArrayView2<u8>,
 ) -> Result<Vec<u8>, PostProcessingError> {
     let mask_img = ndarray_to_gray_image(mask);
@@ -92,7 +93,7 @@ fn extract_candidates(
 }
 
 fn get_topk_masklist(
-    im_grey: Array2<u8>,
+    im_grey: ArrayView2<u8>,
     ped_mask: &ArrayView2<u8>,
 ) -> Result<Vec<(Array2<u8>, u64)>, PostProcessingError> {
     let candidate_grey_px = extract_candidates(&im_grey, &ped_mask)?;
@@ -105,7 +106,8 @@ fn get_topk_masklist(
             let c_top = 255.min(color + color_range);
             let c_bottom = c_top as i64 - 2 * color_range as i64;
             let mut threshed = Mat::default();
-            let im_grey = Mask::from(&im_grey).as_opencv_mat()?;
+            let im_grey = Mask::from(&im_grey);
+            let im_grey = im_grey.as_opencv_mat()?;
 
             in_range(
                 &im_grey,
@@ -113,7 +115,8 @@ fn get_topk_masklist(
                 &Scalar::all(c_top as f64),
                 &mut threshed,
             )?;
-            let threshed = Mask::from(threshed).as_nd();
+            let threshed = Mask::from(threshed);
+            let threshed = threshed.as_nd();
 
             let (threshed, xor_sum) = minxor_thresh(threshed, &ped_mask, false);
             Ok((threshed, xor_sum))
@@ -316,7 +319,8 @@ fn merge_mask_list(
         let mut labels = Mat::default();
         let mut stats = Mat::default();
         let mut centroids = Mat::default();
-        let candidate_mask = Mask::from(candidate_mask).as_opencv_mat()?;
+        let candidate_mask = Mask::from(candidate_mask);
+        let candidate_mask = candidate_mask.as_opencv_mat()?;
         let num_labels = opencv::imgproc::connected_components_with_stats(
             &candidate_mask,
             &mut labels,
@@ -418,7 +422,8 @@ fn get_otsuthresh_masklist(
             let c = Mat::from_slice(&c)?;
             let c = c.reshape(1, h as i32)?;
             opencv::imgproc::threshold(&c, &mut threshed, 1.0, 255.0, THRESH_OTSU | THRESH_BINARY)?;
-            let threshed = Mask::from(threshed).as_nd();
+            let threshed = Mask::from(threshed);
+            let threshed = threshed.as_nd();
             let (threshed, xor_sum) = minxor_thresh(threshed, &pred_mask, false);
             Ok((threshed, xor_sum))
         })
@@ -426,8 +431,12 @@ fn get_otsuthresh_masklist(
     Ok(vec![mask_list.into_iter().min_by_key(|v| v.1).unwrap()])
 }
 
-fn minxor_thresh(threshed: Array2<u8>, mask: &ArrayView2<u8>, dilate: bool) -> (Array2<u8>, u64) {
-    let neg_threshed = threshed.clone().mapv(|v| 255 - v);
+fn minxor_thresh(
+    threshed: ArrayView2<u8>,
+    mask: &ArrayView2<u8>,
+    dilate: bool,
+) -> (Array2<u8>, u64) {
+    let neg_threshed = threshed.mapv(|v| 255 - v);
     if dilate {
         // let e_size = 1;
         // element = cv2.getStructuringElement(cv2.MORPH_RECT, (2 * e_size + 1, 2 * e_size + 1),(e_size, e_size))
@@ -446,7 +455,7 @@ fn minxor_thresh(threshed: Array2<u8>, mask: &ArrayView2<u8>, dilate: bool) -> (
     if neg_xor_sum < xor_sum {
         return (neg_threshed, neg_xor_sum);
     } else {
-        return (threshed, xor_sum);
+        return (threshed.to_owned(), xor_sum);
     }
 }
 

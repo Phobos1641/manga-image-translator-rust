@@ -144,7 +144,7 @@ fn pre_process(
     let patches = imgs
         .into_iter()
         .map(|v| {
-            v.to_ndarray()
+            v.as_ndarray()
                 .unwrap()
                 .mapv(|v| f16::from_f32(v as f32 / 255.0))
                 .permuted_axes((2, 0, 1))

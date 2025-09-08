@@ -201,13 +201,13 @@ impl interface_ocr::Ocr for MangaOCR {
 }
 
 async fn preprocessor(
-    img: Mask,
+    mut img: Mask,
     img_processor: Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<Array4<f32>, PreProcessingError> {
     //"resample": 2,"size": 224
     spawn_blocking(move || {
         let resized =
-            img_processor.resize_mask(img, 224, 224, interface_image::Interpolation::Bilinear);
+            img_processor.resize_mask(&mut img, 224, 224, interface_image::Interpolation::Bilinear);
         let img = resized
             .as_nd()
             .mapv(|pixel| pixel as f32 / 255.0 * 2.0 - 1.0);

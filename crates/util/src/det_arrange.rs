@@ -3,7 +3,7 @@ use std::sync::Arc;
 use base_util::error::{Error, PostProcessingError, PreProcessingError, ProcessingError};
 use interface_image::{DimType, ImageOp, Interpolation, RawImage};
 use log::info;
-use ndarray::{s, stack, Array, Array3, Array4, ArrayView3, Axis, Zip};
+use ndarray::{s, stack, Array, Array3, Array4, ArrayView3, ArrayView4, Axis, Zip};
 use rayon::prelude::*;
 
 fn square_pad_resize(
@@ -35,7 +35,7 @@ fn square_pad_resize(
     assert!(down_scale_ratio <= 1.0);
     if down_scale_ratio < 1.0 {
         img = processor.resize(
-            img,
+            &mut img,
             tgt_size as u16,
             tgt_size as u16,
             Interpolation::Bilinear,
@@ -45,7 +45,7 @@ fn square_pad_resize(
     return (img, down_scale_ratio, pad_h, pad_w);
 }
 
-fn stack_vec_to_array4(vec: Vec<Array3<u8>>) -> Result<Array4<u8>, PreProcessingError> {
+fn stack_vec_to_array4(vec: Vec<ArrayView3<u8>>) -> Result<Array4<u8>, PreProcessingError> {
     Ok(stack(
         Axis(0),
         &vec.iter().map(|a| a.view()).collect::<Vec<_>>(),
@@ -103,8 +103,8 @@ fn patch2batches(
     processor: &Arc<dyn ImageOp + Send + Sync>,
 ) -> Result<(Vec<Vec<RawImage>>, Option<f64>, Option<isize>), PreProcessingError> {
     let path_lst = patch_lst
-        .into_iter()
-        .map(|v| v.to_ndarray())
+        .iter()
+        .map(|v| v.as_ndarray())
         .collect::<Result<Vec<_>, _>>()?;
     let path_lst = stack_vec_to_array4(path_lst)?;
     let patch_lst = rearrange_patches(path_lst, p_num, transpose);
@@ -131,7 +131,7 @@ fn patch2batches(
 }
 
 fn process_arrays(
-    db: &Array4<f32>,
+    db: &ArrayView4<f32>,
     mask: &Array4<f32>,
     tgt_size: usize,
     pad_size: isize,
@@ -214,15 +214,16 @@ pub fn shoud_rearrange(img: &RawImage, tgt_size: u32) -> bool {
     down_scale_ratio > 2.5 && asp_ratio > 3.0
 }
 
-pub fn det_rearrange_forward(
+pub fn det_rearrange_forward<F>(
     mut img: RawImage,
     tgt_size: u32,
     max_batch_size: u8,
-    mut dbnet_batch_forward: impl FnMut(
-        Array4<u8>,
-    ) -> Result<(Array4<f32>, Array4<f32>), ProcessingError>,
+    mut dbnet_batch_forward: F,
     processor: &Arc<dyn ImageOp + Send + Sync>,
-) -> Result<(Array4<f32>, Array4<f32>), Error> {
+) -> Result<(Array4<f32>, Array4<f32>), Error>
+where
+    F: for<'a> FnMut(ArrayView4<'a, u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError>,
+{
     let (w, h) = (img.width, img.height);
 
     let (transpose, w, h) = if h < w { (true, h, w) } else { (false, w, h) };
@@ -296,8 +297,8 @@ pub fn det_rearrange_forward(
         .into_par_iter()
         .map(|batch| {
             let batch_arrays: Result<Vec<_>, PreProcessingError> = batch
-                .into_iter()
-                .map(|v| v.to_ndarray().map_err(PreProcessingError::from))
+                .iter()
+                .map(|v| v.as_ndarray().map_err(PreProcessingError::from))
                 .collect();
             let batch_array4 = vec_array3_to_array4(batch_arrays?);
             batch_array4
@@ -308,13 +309,14 @@ pub fn det_rearrange_forward(
         Some(v) => v,
         None => Err(PreProcessingError::Empty)?,
     };
-
-    let (db_lst, mask_lst): (Vec<_>, Vec<_>) = batch_results?
-        .into_iter()
-        .map(|v| dbnet_batch_forward(v))
-        .collect::<Result<Vec<_>, ProcessingError>>()?
+    let batch_results = batch_results?;
+    let mut temp = Vec::with_capacity(batch_results.len());
+    for v in batch_results {
+        temp.push(dbnet_batch_forward(v.view())?);
+    }
+    let (db_lst, mask_lst): (Vec<_>, Vec<_>) = temp
         .into_par_iter()
-        .flat_map(|(db, mask)| process_arrays(&db, &mask, tgt_size as usize, pad_size))
+        .flat_map(|(db, mask)| process_arrays(&db.view(), &mask, tgt_size as usize, pad_size))
         .unzip();
     let db = unrearrange(
         db_lst,
@@ -345,13 +347,14 @@ pub fn det_rearrange_forward(
     Ok((db, mask))
 }
 
-fn vec_array3_to_array4<T: Clone>(arrays: Vec<Array3<T>>) -> Result<Array4<T>, PreProcessingError> {
+fn vec_array3_to_array4<T: Clone>(
+    arrays: Vec<ArrayView3<T>>,
+) -> Result<Array4<T>, PreProcessingError> {
     if arrays.is_empty() {
         Err(PreProcessingError::Empty)?
     }
 
-    let views: Vec<_> = arrays.iter().map(|a| a.view()).collect();
-    Ok(stack(Axis(0), &views)?)
+    Ok(stack(Axis(0), &arrays)?)
 }
 
 fn unrearrange(
@@ -423,7 +426,7 @@ mod tests {
 
     use base_util::error::ProcessingError;
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
-    use ndarray::Array4;
+    use ndarray::{Array4, ArrayView4};
 
     use crate::det_arrange::det_rearrange_forward;
 
@@ -458,7 +461,7 @@ mod tests {
         assert_eq!(mask, ex_mask);
     }
 
-    fn mocking(input: Array4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
+    fn mocking(input: ArrayView4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
         let input_ex: Array4<u8> =
             ndarray_npy::read_npy("npys/input.npy").expect("couldnt load npy file");
         assert_eq!(input.shape(), input_ex.shape());
@@ -470,7 +473,7 @@ mod tests {
             ndarray_npy::read_npy("npys/mask_v.npy").expect("couldnt load npy file");
         Ok((db, mask))
     }
-    fn mocking2(input: Array4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
+    fn mocking2(input: ArrayView4<u8>) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
         let input_ex: Array4<u8> =
             ndarray_npy::read_npy("npys/input_h.npy").expect("couldnt load npy file");
         assert_eq!(input.shape(), input_ex.shape());

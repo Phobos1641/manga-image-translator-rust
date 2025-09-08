@@ -1,4 +1,7 @@
-use fast_image_resize::{images::Image, FilterType, ResizeAlg, ResizeOptions, Resizer};
+use fast_image_resize::{
+    images::{Image, ImageRef},
+    FilterType, ResizeAlg, ResizeOptions, Resizer,
+};
 
 use rayon::{
     iter::{
@@ -432,7 +435,7 @@ impl ImageOp for RayonImageProcessor {
 
     fn resize(
         &self,
-        image: super::RawImage,
+        image: &super::RawImage,
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
@@ -447,10 +450,10 @@ impl ImageOp for RayonImageProcessor {
             Interpolation::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
         };
         let mut resizer = Resizer::new();
-        let src_image = Image::from_vec_u8(
+        let src_image = ImageRef::new(
             image.width as u32,
             image.height as u32,
-            image.data,
+            image.data.as_slice(),
             fast_image_resize::PixelType::U8x3,
         )
         .unwrap();
@@ -476,7 +479,7 @@ impl ImageOp for RayonImageProcessor {
 
     fn resize_mask(
         &self,
-        image: Mask,
+        image: &Mask,
         width: usize,
         height: usize,
         interpolation: Interpolation,
@@ -490,10 +493,10 @@ impl ImageOp for RayonImageProcessor {
             Interpolation::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
         };
         let mut resizer = Resizer::new();
-        let src_image = Image::from_vec_u8(
+        let src_image = ImageRef::new(
             image.width as u32,
             image.height as u32,
-            image.data,
+            image.data.as_slice(),
             fast_image_resize::PixelType::U8,
         )
         .unwrap();

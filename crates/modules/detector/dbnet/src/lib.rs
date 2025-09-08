@@ -10,7 +10,7 @@ use interface_image::{DimType, ImageOp, Interpolation, Mask, RawImage};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
 use log::debug;
 
-use ndarray::{array, Array2, Array3, Array4, ArrayViewD, Axis};
+use ndarray::{array, Array2, Array3, Array4, ArrayView4, ArrayViewD, Axis};
 use opencv::core::BORDER_DEFAULT;
 use ort::{session::Session, value::Tensor};
 use util::{
@@ -73,9 +73,9 @@ impl Model for DbNetDetector {
     }
 }
 
-fn det_batch_forward_default(
-    session: &mut Session,
-    batch: Array4<u8>,
+fn det_batch_forward_default<'a, 'b>(
+    session: &'b mut Session,
+    batch: ArrayView4<'a, u8>,
 ) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
     let batch = batch
         .mapv(|x| x as f32 / 127.5 - 1.0)
@@ -103,7 +103,9 @@ impl Detector for DbNetDetector {
         let (db, mask, shape, ratio_w, ratio_h, pad_w, pad_h) =
             match shoud_rearrange(&img, options.detect_size as u32) {
                 true => {
-                    let v = |batch| det_batch_forward_default(session, batch);
+                    let v = |batch: ArrayView4<'_, u8>| -> Result<_, ProcessingError> {
+                        det_batch_forward_default(session, batch)
+                    };
                     let shape = (img.height, img.width);
                     let (db, mask) = det_rearrange_forward(
                         img,
@@ -125,7 +127,7 @@ impl Detector for DbNetDetector {
                     let ratio_h = 1.0 / resized.ratio;
                     let ratio_w = ratio_h;
                     let shape = (resized.img.height, resized.img.width);
-                    let img = resized.img.to_ndarray()?.insert_axis(ndarray::Axis(0));
+                    let img = resized.img.as_ndarray()?.insert_axis(ndarray::Axis(0));
                     let (db, mask) = det_batch_forward_default(session, img)?;
                     (
                         db,
@@ -191,10 +193,11 @@ impl Detector for DbNetDetector {
             .filter(|v| v.area() >= 16.0)
             .collect::<Vec<_>>();
 
-        let mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
+        let mut mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
         let t_w = mask.width as usize * 2;
         let t_h = mask.height as usize * 2;
-        let mut mask_resized = img_processor.resize_mask(mask, t_w, t_h, Interpolation::Bilinear);
+        let mut mask_resized =
+            img_processor.resize_mask(&mut mask, t_w, t_h, Interpolation::Bilinear);
         let new_mask_width = mask_resized.width - pad_w as DimType;
         let new_mask_height = mask_resized.height - pad_h as DimType;
         if pad_h > 0 || pad_w > 0 {

@@ -65,20 +65,15 @@ impl From<Mask> for RawImage {
 impl From<Array2<u8>> for RawImage {
     fn from(mask: Array2<u8>) -> Self {
         let (height, width) = mask.dim();
-        let channels = 3;
-        let mut rgb = Array3::<u8>::zeros((height, width, channels));
-        for ((row, col), &val) in mask.indexed_iter() {
-            rgb[[row, col, 0]] = val;
-            rgb[[row, col, 1]] = val;
-            rgb[[row, col, 2]] = val;
-        }
-        let data = rgb
-            .as_slice()
-            .map(|v| v.to_vec())
-            .unwrap_or_else(|| rgb.into_iter().collect());
+        let rgb = mask
+            .broadcast((mask.shape()[0], mask.shape()[1], 3))
+            .unwrap()
+            .to_owned();
+        let (v, offset) = rgb.into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
 
         RawImage {
-            data,
+            data: v,
             width: width as u16,
             height: height as u16,
             channels: 3,
@@ -137,13 +132,11 @@ impl From<&Array2<u8>> for Mask {
     fn from(mask: &Array2<u8>) -> Self {
         let (height, width) = mask.dim();
 
-        let data = mask
-            .as_slice()
-            .map(|v| v.to_vec())
-            .unwrap_or_else(|| mask.iter().copied().collect());
+        let (v, offset) = mask.to_owned().into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
 
         Mask {
-            data,
+            data: v,
             width: width as u16,
             height: height as u16,
         }
@@ -154,13 +147,26 @@ impl From<ArrayView2<'_, u8>> for Mask {
     fn from(mask: ArrayView2<'_, u8>) -> Self {
         let (height, width) = mask.dim();
 
-        let data = mask
-            .as_slice()
-            .map(|v| v.to_vec())
-            .unwrap_or_else(|| mask.iter().copied().collect());
+        let (v, offset) = mask.to_owned().into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
 
         Mask {
-            data,
+            data: v,
+            width: width as u16,
+            height: height as u16,
+        }
+    }
+}
+
+impl From<&ArrayView2<'_, u8>> for Mask {
+    fn from(mask: &ArrayView2<'_, u8>) -> Self {
+        let (height, width) = mask.dim();
+
+        let (v, offset) = mask.to_owned().into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
+
+        Mask {
+            data: v,
             width: width as u16,
             height: height as u16,
         }
@@ -168,16 +174,16 @@ impl From<ArrayView2<'_, u8>> for Mask {
 }
 
 impl From<Array2<u8>> for Mask {
-    fn from(mask: Array2<u8>) -> Self {
+    fn from(mut mask: Array2<u8>) -> Self {
         let (height, width) = mask.dim();
-
-        let data = mask
-            .as_slice()
-            .map(|v| v.to_vec())
-            .unwrap_or_else(|| mask.into_iter().collect());
+        if mask.as_slice().is_none() {
+            mask = mask.to_owned();
+        }
+        let (v, offset) = mask.into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
 
         Mask {
-            data,
+            data: v,
             width: width as u16,
             height: height as u16,
         }
@@ -185,37 +191,20 @@ impl From<Array2<u8>> for Mask {
 }
 
 impl From<Array3<u8>> for RawImage {
-    fn from(value: Array3<u8>) -> Self {
+    fn from(mut value: Array3<u8>) -> Self {
         let (height, width, channels) = value.dim();
 
-        let data = value
-            .as_slice()
-            .map(|v| v.to_vec())
-            .unwrap_or_else(|| value.into_iter().collect());
+        if value.as_slice().is_none() {
+            value = value.to_owned();
+        }
+        let (v, offset) = value.into_raw_vec_and_offset();
+        assert_eq!(offset.unwrap_or_default(), 0);
 
         RawImage {
-            data,
+            data: v,
             width: width as u16,
             height: height as u16,
             channels: channels as u8,
         }
-    }
-}
-
-impl From<Array2<f32>> for RawImage {
-    fn from(input: Array2<f32>) -> Self {
-        let (height, width) = input.dim();
-
-        let mut output = Array3::<u8>::zeros((height, width, 3));
-
-        for ((row, col), &val) in input.indexed_iter() {
-            let pixel = (val.clamp(0.0, 1.0) * 255.0) as u8;
-
-            output[[row, col, 0]] = pixel;
-            output[[row, col, 1]] = pixel;
-            output[[row, col, 2]] = pixel;
-        }
-
-        Self::from(output)
     }
 }

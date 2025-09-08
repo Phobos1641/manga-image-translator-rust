@@ -425,7 +425,7 @@ impl ImageOp for CpuImageProcessor {
 
     fn resize(
         &self,
-        image: super::RawImage,
+        image: &super::RawImage,
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
@@ -435,7 +435,7 @@ impl ImageOp for CpuImageProcessor {
 
     fn resize_mask(
         &self,
-        image: Mask,
+        image: &Mask,
         width: usize,
         height: usize,
         interpolation: Interpolation,

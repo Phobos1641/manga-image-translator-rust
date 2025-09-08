@@ -9,7 +9,7 @@ use util::{
 };
 
 pub fn load_masked_position_encoding(
-    mask: Mask,
+    mut mask: Mask,
     op: &Arc<dyn ImageOp + Send + Sync>,
 ) -> (Array2<i64>, Array3<i64>) {
     let (ori_h, ori_w) = (mask.height as usize, mask.width as usize);
@@ -26,14 +26,13 @@ pub fn load_masked_position_encoding(
         .clone()
         .as_nd()
         .mapv(|v| if v > 127 { 1.0f32 } else { 0.0f32 });
-    let mask = op
-        .resize_mask(
-            mask,
-            str_size,
-            str_size,
-            interface_image::Interpolation::Box,
-        )
-        .as_nd();
+    let mask = op.resize_mask(
+        &mut mask,
+        str_size,
+        str_size,
+        interface_image::Interpolation::Box,
+    );
+    let mask = mask.as_nd();
     let (h, w) = (str_size, str_size);
     let mut mask3 = mask.view().mapv(|v| ((v == 0) as u8) as f32);
     let mut i = 0;

@@ -11,7 +11,7 @@ use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
 use interface_image::{ImageOp, Interpolation, Mask, RawImage};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
 use maplit::hashmap;
-use ndarray::{s, stack, Array2, Array4, ArrayViewD, Axis};
+use ndarray::{s, stack, Array2, Array4, ArrayView4, ArrayViewD, Axis};
 use ort::{session::Session, value::Tensor};
 use util::{
     dbnet::SegDetectorRepresenter,
@@ -76,7 +76,9 @@ impl Detector for CtdDetector {
         let session = self.load()?;
         let (lines_map, mask) = match shoud_rearrange(&img, 1024) {
             true => {
-                let v = |batch| det_batch_forward_ctd(session, batch);
+                let v = |batch: ArrayView4<'_, u8>| -> Result<_, ProcessingError> {
+                    det_batch_forward_ctd(session, batch)
+                };
                 let (lines_map, mask) =
                     det_rearrange_forward(img.clone(), 1024, 4, v, img_processor)?;
                 (lines_map, mask)
@@ -112,7 +114,7 @@ impl Detector for CtdDetector {
             .index_axis(ndarray::Axis(0), 0)
             .to_owned();
 
-        let mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
+        let mut mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
         let (lines, scores) =
             SegDetectorRepresenter::default().call(lines_map, false, im_w as u16, im_h as u16)?;
         let box_thresh = 0.6;
@@ -140,16 +142,20 @@ impl Detector for CtdDetector {
                 )
             })
             .collect::<Vec<_>>();
-        let mask =
-            img_processor.resize_mask(mask, im_w as usize, im_h as usize, Interpolation::Bilinear);
+        let mask = img_processor.resize_mask(
+            &mut mask,
+            im_w as usize,
+            im_h as usize,
+            Interpolation::Bilinear,
+        );
         let mask_refined = refine_mask::refine_mask(img, mask, qu.clone(), false)?;
 
         Ok((qu, mask_refined))
     }
 }
-fn det_batch_forward_ctd(
-    session: &mut Session,
-    batch: Array4<u8>,
+fn det_batch_forward_ctd<'a, 'b>(
+    session: &'b mut Session,
+    batch: ArrayView4<'a, u8>,
 ) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
     let batch = batch.mapv(|v| v as f32 / 255.).permuted_axes([0, 3, 1, 2]);
     let tensor = Tensor::from_array(batch)?;
@@ -175,7 +181,7 @@ fn preprocess_img(
     }
     let (img_in, ratio, (dw, dh)) =
         letterbox(img, img_processor, input_size, false, false, true, 64);
-    let nd = img_in.to_ndarray()?;
+    let nd = img_in.as_ndarray()?;
     let nd = nd.permuted_axes([2, 0, 1]);
     let nd = nd.slice(s![..;-1, .., ..]);
     let nd = nd.mapv(|v| v as f32 / 255.0);
@@ -215,7 +221,7 @@ fn letterbox(
 
     if new_unpad.0 != w as u32 || new_unpad.1 != h as u32 {
         im = img_processor.resize(
-            im,
+            &mut im,
             new_unpad.0 as u16,
             new_unpad.1 as u16,
             Interpolation::Bilinear,
