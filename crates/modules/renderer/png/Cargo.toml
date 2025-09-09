@@ -10,3 +10,4 @@ interface-image.workspace = true
 opencv = { workspace = true, features = ["imgproc"] }
 env_logger.workspace = true
 export.workspace = true
+anyhow.workspace = true

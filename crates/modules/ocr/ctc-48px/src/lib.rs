@@ -55,7 +55,7 @@ impl ModelLoad for Ctc48pxOcr {
         self.model.as_mut()
     }
 
-    fn reload(&mut self) -> Result<&mut Self::T, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
         let model = self.download_model("model", "model.onnx")?;
         let dict = self.download_model("alphabet-all-v5", "alphabet-all-v5.txt")?;
         let dict = read_to_string(dict)

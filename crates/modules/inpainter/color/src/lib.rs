@@ -40,7 +40,7 @@ impl Model for ColorInpainter {
         self.loaded
     }
 
-    fn reload_(&mut self) -> Result<(), interface_model::ModelLoadError> {
+    fn reload_(&mut self) -> anyhow::Result<()> {
         self.loaded = true;
         Ok(())
     }

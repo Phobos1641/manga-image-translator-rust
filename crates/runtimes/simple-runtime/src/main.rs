@@ -106,7 +106,7 @@ async fn main() {
         } else {
             None
         };
-        let exp = models.execute(img, &settings, debug_path).await;
+        let exp = models.execute(img, &settings, debug_path).await.unwrap();
         //TODO: from config
         renderer.render(
             exp,

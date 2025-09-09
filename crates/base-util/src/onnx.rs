@@ -12,8 +12,6 @@ use ort::{
     },
 };
 
-use crate::error::ModelLoadError;
-
 #[derive(Clone)]
 pub enum Providers {
     TensorRT,
@@ -42,7 +40,7 @@ pub fn gpu_providers() -> Vec<Providers> {
     ]
 }
 
-pub fn new_session(path: PathBuf, providers: Vec<Providers>) -> Result<Session, ModelLoadError> {
+pub fn new_session(path: PathBuf, providers: Vec<Providers>) -> anyhow::Result<Session> {
     Ok(new_session_(Session::builder()?, providers)?.commit_from_file(path)?)
 }
 

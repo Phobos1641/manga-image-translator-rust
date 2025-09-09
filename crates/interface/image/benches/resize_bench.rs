@@ -8,7 +8,9 @@ fn bench_resize_cpu(
     image: &mut RawImage,
     interpolation: Interpolation,
 ) -> RawImage {
-    processor.resize(image, image.width * 2, image.height * 2, interpolation)
+    processor
+        .resize(image, image.width * 2, image.height * 2, interpolation)
+        .expect("Failed to resize")
 }
 
 fn bench_resize_rayon(
@@ -16,7 +18,9 @@ fn bench_resize_rayon(
     image: &mut RawImage,
     interpolation: Interpolation,
 ) -> RawImage {
-    processor.resize(image, image.width * 2, image.height * 2, interpolation)
+    processor
+        .resize(image, image.width * 2, image.height * 2, interpolation)
+        .expect("Failed to resize")
 }
 
 #[cfg(feature = "gpu")]

@@ -11,3 +11,4 @@ maplit.workspace = true
 ort.workspace = true
 ndarray.workspace = true
 base-util.workspace = true
+anyhow.workspace = true

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::bail;
 use cosmic_text::{
     Align, Attrs, Buffer, Color, FontSystem, LayoutRun, Metrics, Shaping, Stretch, Style,
     SwashCache, Weight,
@@ -108,18 +109,18 @@ pub struct ColorMap {
 }
 
 impl ColorMap {
-    pub fn get_id(&mut self, color: (u8, u8, u8)) -> usize {
+    pub fn get_id(&mut self, color: (u8, u8, u8)) -> anyhow::Result<usize> {
         if let Some(i) = self.map.get(&color) {
-            return *i;
+            return Ok(*i);
         }
         self.index += 1;
         if self.index >= 255 {
-            panic!("To many colors in text block")
+            bail!("To many colors in text block")
         }
         self.map.insert(color, self.index);
         self.map2.insert(self.index, color);
 
-        self.index
+        Ok(self.index)
     }
 
     pub fn to_image(&self, input: Mask) -> RawImage {
@@ -366,7 +367,11 @@ impl Text {
                 self.font_size,
                 self.font_size * self.line_height,
             ))
-            .metadata(color_map.get_id(self.bg_color.unwrap_or((255, 255, 255))));
+            .metadata(
+                color_map
+                    .get_id(self.bg_color.unwrap_or((255, 255, 255)))
+                    .unwrap(),
+            );
         if let Some(letter_spacing) = self.letter_spacing {
             attrs = attrs.letter_spacing(letter_spacing)
         }

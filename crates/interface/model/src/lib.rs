@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use crate::db::ModelDb;
-pub use base_util::error::ModelLoadError;
+use anyhow::{anyhow, bail};
 #[cfg(feature = "onnx")]
 use base_util::onnx::{all_providers, Providers};
 
@@ -11,13 +11,13 @@ pub trait ModelLoad {
     type T;
     fn loaded(&self) -> bool;
     fn get_model(&mut self) -> Option<&mut Self::T>;
-    fn load(&mut self) -> Result<&mut Self::T, ModelLoadError> {
+    fn load(&mut self) -> anyhow::Result<&mut Self::T> {
         if self.loaded() {
             return Ok(self.get_model().unwrap());
         }
         self.reload()
     }
-    fn reload(&mut self) -> Result<&mut Self::T, ModelLoadError>;
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T>;
 }
 
 pub trait Model {
@@ -25,19 +25,19 @@ pub trait Model {
     fn kind(&self) -> &'static str;
     fn models(&self) -> HashMap<&'static str, ModelSource>;
     fn unload(&mut self);
-    fn download_model(&self, key: &str, file: &str) -> Result<PathBuf, ModelLoadError> {
+    fn download_model(&self, key: &str, file: &str) -> anyhow::Result<PathBuf> {
         let models = self.models();
-        let model = models.get(key).ok_or(ModelLoadError::ModelNotRegistered)?;
+        let model = models.get(key).ok_or(anyhow!("Model not found"))?;
         ModelDb {}.get(self.kind(), self.name(), file, &model.url, &model.hash)
     }
     fn loaded_(&self) -> bool;
-    fn reload_(&mut self) -> Result<(), ModelLoadError>;
+    fn reload_(&mut self) -> anyhow::Result<()>;
 }
 
 #[macro_export]
 macro_rules! impl_model_load_helpers {
     ($kind:literal, $name:literal) => {
-        fn reload_(&mut self) -> Result<(), base_util::error::ModelLoadError> {
+        fn reload_(&mut self) -> anyhow::Result<()> {
             self.reload()?;
             Ok(())
         }

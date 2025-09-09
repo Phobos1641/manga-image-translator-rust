@@ -439,7 +439,7 @@ impl ImageOp for RayonImageProcessor {
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
-    ) -> super::RawImage {
+    ) -> anyhow::Result<super::RawImage> {
         assert_eq!(image.channels, 3);
         let resize_alg = match interpolation {
             Interpolation::Nearest => ResizeAlg::Nearest,
@@ -455,26 +455,23 @@ impl ImageOp for RayonImageProcessor {
             image.height as u32,
             image.data.as_slice(),
             fast_image_resize::PixelType::U8x3,
-        )
-        .unwrap();
+        )?;
         let mut dst_image = Image::new(
             width as u32,
             height as u32,
             fast_image_resize::PixelType::U8x3,
         );
-        resizer
-            .resize(
-                &src_image,
-                &mut dst_image,
-                Some(&ResizeOptions::new().use_alpha(false).resize_alg(resize_alg)),
-            )
-            .unwrap();
-        super::RawImage {
+        resizer.resize(
+            &src_image,
+            &mut dst_image,
+            Some(&ResizeOptions::new().use_alpha(false).resize_alg(resize_alg)),
+        )?;
+        Ok(super::RawImage {
             width: dst_image.width() as DimType,
             height: dst_image.height() as DimType,
             channels: 3,
             data: dst_image.into_vec(),
-        }
+        })
     }
 
     fn resize_mask(
@@ -483,7 +480,7 @@ impl ImageOp for RayonImageProcessor {
         width: usize,
         height: usize,
         interpolation: Interpolation,
-    ) -> Mask {
+    ) -> anyhow::Result<Mask> {
         let resize_alg = match interpolation {
             Interpolation::Nearest => ResizeAlg::Nearest,
             Interpolation::Box => ResizeAlg::Convolution(FilterType::Box),
@@ -498,25 +495,22 @@ impl ImageOp for RayonImageProcessor {
             image.height as u32,
             image.data.as_slice(),
             fast_image_resize::PixelType::U8,
-        )
-        .unwrap();
+        )?;
         let mut dst_image = Image::new(
             width as u32,
             height as u32,
             fast_image_resize::PixelType::U8,
         );
-        resizer
-            .resize(
-                &src_image,
-                &mut dst_image,
-                Some(&ResizeOptions::new().use_alpha(false).resize_alg(resize_alg)),
-            )
-            .unwrap();
-        Mask {
+        resizer.resize(
+            &src_image,
+            &mut dst_image,
+            Some(&ResizeOptions::new().use_alpha(false).resize_alg(resize_alg)),
+        )?;
+        Ok(Mask {
             data: dst_image.into_vec(),
             width: width as DimType,
             height: height as DimType,
-        }
+        })
     }
     fn remove_border_mask(&self, mask: Mask, width: DimType, height: DimType) -> Mask {
         let mut cropped = vec![0u8; width as usize * height as usize];

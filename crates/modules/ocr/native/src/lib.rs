@@ -27,7 +27,7 @@ impl ModelLoad for NativeOCR {
         self.model.as_mut()
     }
 
-    fn reload(&mut self) -> Result<&mut Self::T, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
         let engine = OcrEngine::new(OcrProvider::Auto).unwrap().with_options(
             OcrOptions::default().languages(vec![
                 Language::Chinese,

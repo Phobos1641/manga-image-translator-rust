@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use base_util::error::PostProcessingError;
+use anyhow::{anyhow, bail};
 use clipper2::{ClipperOffset, ClipperOffsetConfig, Path};
 use clipper2c_sys::{ClipperEndType_POLYGON_END, ClipperJoinType_ROUND_JOIN};
 use ndarray::{concatenate, s, stack, Array1, Array2, Array3, Array4, ArrayView2, Axis};
@@ -73,7 +73,7 @@ impl SegDetectorRepresenter {
         is_output_polygon: bool,
         width: u16,
         height: u16,
-    ) -> Result<(Vec<Option<Array3<i64>>>, Vec<Option<Vec<f64>>>), PostProcessingError> {
+    ) -> anyhow::Result<(Vec<Option<Array3<i64>>>, Vec<Option<Vec<f64>>>)> {
         let pred: Array3<f32> = pred.slice(s![.., 0, .., ..]).to_owned();
         let segmentation: Array3<bool> = self.binarize(&pred);
         let batch_size = pred.shape()[0];
@@ -149,10 +149,7 @@ impl SegDetectorRepresenter {
         Ok((box_points, min_side))
     }
 
-    pub fn box_score_fast(
-        bitmap: ArrayView2<f32>,
-        box_: &Vector<Point>,
-    ) -> Result<f64, PostProcessingError> {
+    pub fn box_score_fast(bitmap: ArrayView2<f32>, box_: &Vector<Point>) -> anyhow::Result<f64> {
         let (h, w) = (bitmap.nrows() as i32, bitmap.ncols() as i32);
 
         let xs: Vec<i32> = box_.iter().map(|p| p.x).collect();
@@ -161,22 +158,22 @@ impl SegDetectorRepresenter {
         let xmin = *xs
             .iter()
             .min()
-            .ok_or(PostProcessingError::Empty)?
+            .ok_or(anyhow!("box is empty"))?
             .clamp(&0, &(w - 1));
         let xmax = *xs
             .iter()
             .max()
-            .ok_or(PostProcessingError::Empty)?
+            .ok_or(anyhow!("box is empty"))?
             .clamp(&0, &(w - 1));
         let ymin = *ys
             .iter()
             .min()
-            .ok_or(PostProcessingError::Empty)?
+            .ok_or(anyhow!("box is empty"))?
             .clamp(&0, &(h - 1));
         let ymax = *ys
             .iter()
             .max()
-            .ok_or(PostProcessingError::Empty)?
+            .ok_or(anyhow!("box is empty"))?
             .clamp(&0, &(h - 1));
 
         let width = xmax - xmin + 1;
@@ -228,9 +225,9 @@ impl SegDetectorRepresenter {
         bitmap: ArrayView2<bool>,
         dest_width: u16,
         dest_height: u16,
-    ) -> Result<(Option<Array3<i64>>, Option<Vec<f64>>), PostProcessingError> {
+    ) -> anyhow::Result<(Option<Array3<i64>>, Option<Vec<f64>>)> {
         let [height, width] = bitmap.shape()[..] else {
-            panic!("Expected 2 dimensions");
+            bail!("Expected 2 dimensions");
         };
 
         let contours = match crate::imageproc::find_contours_from_ndarray(&bitmap) {
@@ -286,7 +283,7 @@ impl SegDetectorRepresenter {
                 .enumerate()
                 .min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(Ordering::Equal)) // Use `partial_cmp` for floats
                 .map(|(idx, _)| idx)
-                .ok_or(PostProcessingError::Empty)?;
+                .ok_or(anyhow!("box is empty"))?;
             let box_ = roll_rows(&box_, 4 - startidx as isize);
             scores[index] = score;
             boxes

@@ -429,7 +429,7 @@ impl ImageOp for CpuImageProcessor {
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
-    ) -> super::RawImage {
+    ) -> anyhow::Result<super::RawImage> {
         RayonImageProcessor::default().resize(image, width, height, interpolation)
     }
 
@@ -439,7 +439,7 @@ impl ImageOp for CpuImageProcessor {
         width: usize,
         height: usize,
         interpolation: Interpolation,
-    ) -> Mask {
+    ) -> anyhow::Result<Mask> {
         RayonImageProcessor::default().resize_mask(image, width, height, interpolation)
     }
 

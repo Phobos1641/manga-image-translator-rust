@@ -103,21 +103,27 @@ impl ImageOp for DummyImageProcessor {
         width: super::DimType,
         height: super::DimType,
         _: super::Interpolation,
-    ) -> super::RawImage {
-        super::RawImage {
+    ) -> anyhow::Result<super::RawImage> {
+        Ok(super::RawImage {
             data: vec![0; width as usize * height as usize * 3],
             width,
             height,
             channels: 3,
-        }
+        })
     }
 
-    fn resize_mask(&self, _: &Mask, width: usize, height: usize, _: super::Interpolation) -> Mask {
-        Mask {
+    fn resize_mask(
+        &self,
+        _: &Mask,
+        width: usize,
+        height: usize,
+        _: super::Interpolation,
+    ) -> anyhow::Result<Mask> {
+        Ok(Mask {
             width: width as DimType,
             height: height as DimType,
             data: vec![0; width * height],
-        }
+        })
     }
 
     fn remove_border_mask(&self, _: Mask, width: super::DimType, height: super::DimType) -> Mask {

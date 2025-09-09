@@ -35,7 +35,7 @@ impl ModelLoad for LamaLargeInpainter {
         self.model.as_mut()
     }
 
-    fn reload(&mut self) -> Result<&mut Self::T, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
         self.model = Some(new_session(
             self.download_model("model", "model.onnx")?,
             self.providers.clone(),
@@ -70,15 +70,15 @@ impl Inpainter for LamaLargeInpainter {
             mask,
             options.inpainting_size,
             img_processor,
-        );
+        )?;
         let h = image.height;
         let w = image.width;
         image = interface_inpainter::remove_mask_area(image, &mask);
 
         let (image, mask, new_w, new_h) = lama_add_border(image, mask, img_processor);
-        let (rel_pos, direct) = mpe::load_masked_position_encoding(mask.clone(), img_processor);
+        let (rel_pos, direct) = mpe::load_masked_position_encoding(mask.clone(), img_processor)?;
         let mask = mask
-            .as_nd()
+            .as_nd()?
             .mapv(|v| if v >= 127 { 1.0f32 } else { 0.0f32 })
             .insert_axis(Axis(0))
             .insert_axis(Axis(0));
@@ -112,7 +112,7 @@ impl Inpainter for LamaLargeInpainter {
                 wo,
                 ho,
                 interface_image::Interpolation::Bicubic,
-            );
+            )?;
         }
         Ok(img_inpainted)
     }

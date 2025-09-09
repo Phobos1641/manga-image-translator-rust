@@ -1,4 +1,3 @@
-use base_util::error::PreProcessingError;
 use interface_image::RawImage;
 use ndarray::{Array2, Array3, Axis};
 use opencv::core::{DataType, Mat, MatTraitConst, Point, ToInputArray, BORDER_DEFAULT};
@@ -12,7 +11,7 @@ pub fn bilateral_filter(
     sigma_color: f64,
     sigma_space: f64,
     border_type: i32,
-) -> Result<RawImage, PreProcessingError> {
+) -> anyhow::Result<RawImage> {
     let mut filtered = Mat::default();
     opencv::imgproc::bilateral_filter(
         src,
@@ -28,7 +27,7 @@ pub fn bilateral_filter(
 pub struct Input(Mat);
 
 impl Input {
-    pub fn from_slice_2d<T: DataType>(s: &[impl AsRef<[T]>]) -> Result<Self, PreProcessingError> {
+    pub fn from_slice_2d<T: DataType>(s: &[impl AsRef<[T]>]) -> anyhow::Result<Self> {
         Ok(Input(Mat::from_slice_2d(s)?))
     }
 }
@@ -57,7 +56,7 @@ pub fn filter_2d(
     depth: i32,
     kernel: &Input,
     options: Filter2DOptions,
-) -> Result<Array2<f32>, PreProcessingError> {
+) -> anyhow::Result<Array2<f32>> {
     let mut m = Mat::default();
     opencv::imgproc::filter_2d(
         &src.0,
@@ -73,8 +72,8 @@ pub fn filter_2d(
 
 pub fn convert<T, DT>(
     m: Mat,
-    convert: fn(usize, usize, usize, &[DT]) -> Result<T, PreProcessingError>,
-) -> Result<T, PreProcessingError> {
+    convert: fn(usize, usize, usize, &[DT]) -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
     let m = if m.is_continuous() { m } else { m.clone() };
 
     let size = m.size()?;
@@ -87,13 +86,13 @@ pub fn convert<T, DT>(
     convert(rows, cols, channels, data)
 }
 
-pub fn convert_to_nd<T: Clone>(m: Mat) -> Result<Array3<T>, PreProcessingError> {
+pub fn convert_to_nd<T: Clone>(m: Mat) -> anyhow::Result<Array3<T>> {
     fn nd<T: Clone>(
         rows: usize,
         cols: usize,
         channels: usize,
         data: &[T],
-    ) -> Result<Array3<T>, PreProcessingError> {
+    ) -> anyhow::Result<Array3<T>> {
         let rows = rows;
         let cols = cols;
         let channels = channels;

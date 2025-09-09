@@ -1,13 +1,10 @@
 use std::{cmp::Ordering, path::PathBuf, sync::Arc};
 
-use base_util::{
-    error::PreProcessingError,
-    onnx::{new_session, Providers},
-};
+use base_util::onnx::{new_session, Providers};
 use image::{DynamicImage, GenericImageView, RgbImage};
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelLoadError, ModelSource};
+use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
 use interface_ocr::QuadrilateralInfo;
 use maplit::hashmap;
 use ndarray::{s, stack, Array2, Array4, Axis};
@@ -31,7 +28,7 @@ impl MangaOCRModels {
         dec: PathBuf,
         vocab: PathBuf,
         providers: Vec<base_util::onnx::Providers>,
-    ) -> Result<Self, ModelLoadError> {
+    ) -> anyhow::Result<Self> {
         let enc = new_session(enc, providers.clone())?;
         let dec = new_session(dec, providers)?;
 
@@ -65,7 +62,7 @@ impl ModelLoad for MangaOCR {
         self.models.is_some()
     }
 
-    fn reload(&mut self) -> Result<&mut Self::T, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
         let enc = self.download_model("enc", "encoder_model.onnx")?;
         let dec = self.download_model("dec", "decoder_model.onnx")?;
         let voc = self.download_model("vocab", "vocab.txt")?;
@@ -203,13 +200,17 @@ impl interface_ocr::Ocr for MangaOCR {
 async fn preprocessor(
     mut img: Mask,
     img_processor: Arc<dyn ImageOp + Send + Sync>,
-) -> Result<Array4<f32>, PreProcessingError> {
+) -> anyhow::Result<Array4<f32>> {
     //"resample": 2,"size": 224
     spawn_blocking(move || {
-        let resized =
-            img_processor.resize_mask(&mut img, 224, 224, interface_image::Interpolation::Bilinear);
+        let resized = img_processor.resize_mask(
+            &mut img,
+            224,
+            224,
+            interface_image::Interpolation::Bilinear,
+        )?;
         let img = resized
-            .as_nd()
+            .as_nd()?
             .mapv(|pixel| pixel as f32 / 255.0 * 2.0 - 1.0);
         Ok(stack(Axis(0), &[img.view(), img.view(), img.view()])?.insert_axis(Axis(0)))
     })

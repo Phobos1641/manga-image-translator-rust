@@ -1,7 +1,7 @@
 use std::{f32, sync::Arc};
 
+use anyhow::bail;
 use base_util::{
-    error::ModelLoadError,
     onnx::{all_providers, new_session_, Providers},
     RawSerializable,
 };
@@ -41,7 +41,7 @@ impl ModelLoad for PaddleDetector {
     fn loaded(&self) -> bool {
         self.db_net.is_some()
     }
-    fn reload(&mut self) -> Result<&mut DbNet, ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut DbNet> {
         let mut db_net = DbNet::new();
 
         let model = self
@@ -50,12 +50,12 @@ impl ModelLoad for PaddleDetector {
             .to_string();
         let err = db_net.init_model(&model, 0, Some(|v| ses_builder(v)));
         if let Err(e) = err {
-            Err(match e {
+            match e {
                 paddle_ocr_rs::ocr_error::OcrError::Ort(error) => {
-                    ModelLoadError::CreateSession(error)
+                    bail!("failed to create session {:?}", error)
                 }
                 _ => unreachable!(),
-            })?;
+            }
         }
         self.db_net = Some(db_net);
         Ok(self.db_net.as_mut().unwrap())

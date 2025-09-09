@@ -2,10 +2,8 @@ mod refine_mask;
 
 use std::sync::Arc;
 
-use base_util::{
-    error::{PostProcessingError, ProcessingError},
-    onnx::{new_session, Providers},
-};
+use anyhow::anyhow;
+use base_util::onnx::{new_session, Providers};
 
 use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
 use interface_image::{ImageOp, Interpolation, Mask, RawImage};
@@ -39,7 +37,7 @@ impl ModelLoad for CtdDetector {
         self.model.is_some()
     }
 
-    fn reload(&mut self) -> Result<&mut Self::T, base_util::error::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
         self.model = Some(new_session(
             self.download_model("model", "model.onnx")?,
             self.providers.clone(),
@@ -76,7 +74,7 @@ impl Detector for CtdDetector {
         let session = self.load()?;
         let (lines_map, mask) = match shoud_rearrange(&img, 1024) {
             true => {
-                let v = |batch: ArrayView4<'_, u8>| -> Result<_, ProcessingError> {
+                let v = |batch: ArrayView4<'_, u8>| -> anyhow::Result<_> {
                     det_batch_forward_ctd(session, batch)
                 };
                 let (lines_map, mask) =
@@ -122,12 +120,12 @@ impl Detector for CtdDetector {
             .into_iter()
             .flatten()
             .next()
-            .ok_or(PostProcessingError::Empty)?;
+            .ok_or(anyhow!("no scores"))?;
         let lines = lines
             .into_iter()
             .flatten()
             .next()
-            .ok_or(PostProcessingError::Empty)?;
+            .ok_or(anyhow!("no lines"))?;
         let qu = lines
             .outer_iter()
             .zip(scores)
@@ -147,7 +145,7 @@ impl Detector for CtdDetector {
             im_w as usize,
             im_h as usize,
             Interpolation::Bilinear,
-        );
+        )?;
         let mask_refined = refine_mask::refine_mask(img, mask, qu.clone(), false)?;
 
         Ok((qu, mask_refined))
@@ -156,7 +154,7 @@ impl Detector for CtdDetector {
 fn det_batch_forward_ctd<'a, 'b>(
     session: &'b mut Session,
     batch: ArrayView4<'a, u8>,
-) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
+) -> anyhow::Result<(Array4<f32>, Array4<f32>)> {
     let batch = batch.mapv(|v| v as f32 / 255.).permuted_axes([0, 3, 1, 2]);
     let tensor = Tensor::from_array(batch)?;
     let outputs = session.run(ort::inputs!["input" => tensor])?;
@@ -175,12 +173,12 @@ fn preprocess_img(
     input_size: (u32, u32),
     bgr2rgb: bool,
     half: bool,
-) -> Result<(Array4<f32>, (f64, f64), u32, u32), ProcessingError> {
+) -> anyhow::Result<(Array4<f32>, (f64, f64), u32, u32)> {
     if bgr2rgb {
         img = img_processor.bgr_to_rgb(img);
     }
     let (img_in, ratio, (dw, dh)) =
-        letterbox(img, img_processor, input_size, false, false, true, 64);
+        letterbox(img, img_processor, input_size, false, false, true, 64)?;
     let nd = img_in.as_ndarray()?;
     let nd = nd.permuted_axes([2, 0, 1]);
     let nd = nd.slice(s![..;-1, .., ..]);
@@ -200,7 +198,7 @@ fn letterbox(
     scale_fill: bool,
     scaleup: bool,
     stride: u32,
-) -> (RawImage, (f64, f64), (u32, u32)) {
+) -> anyhow::Result<(RawImage, (f64, f64), (u32, u32))> {
     let (w, h) = (im.width, im.height);
     let mut r = f64::min(new_shape.0 as f64 / h as f64, new_shape.1 as f64 / w as f64);
     if !scaleup {
@@ -225,12 +223,12 @@ fn letterbox(
             new_unpad.0 as u16,
             new_unpad.1 as u16,
             Interpolation::Bilinear,
-        );
+        )?;
     }
     let im_height = im.height;
     let im_width = im.width;
     im = img_processor.add_border_wh(im, im_width + dw as u16, im_height + dh as u16);
-    (im, ratio, (dw, dh))
+    Ok((im, ratio, (dw, dh)))
 }
 
 #[cfg(test)]

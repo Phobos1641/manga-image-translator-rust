@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use base_util::{
-    error::{ModelLoadError, ProcessingError},
-    onnx::{new_session, Providers},
-};
+use base_util::onnx::{new_session, Providers};
 
 use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
 use interface_image::{DimType, ImageOp, Interpolation, Mask, RawImage};
@@ -43,7 +40,7 @@ impl ModelLoad for DbNetDetector {
     fn loaded(&self) -> bool {
         self.model.is_some()
     }
-    fn reload(&mut self) -> Result<&mut Session, ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Session> {
         self.model = Some(new_session(
             self.download_model("model", "model.onnx")?,
             self.providers.clone(),
@@ -76,7 +73,7 @@ impl Model for DbNetDetector {
 fn det_batch_forward_default<'a, 'b>(
     session: &'b mut Session,
     batch: ArrayView4<'a, u8>,
-) -> Result<(Array4<f32>, Array4<f32>), ProcessingError> {
+) -> anyhow::Result<(Array4<f32>, Array4<f32>)> {
     let batch = batch
         .mapv(|x| x as f32 / 127.5 - 1.0)
         .permuted_axes([0, 3, 1, 2]);
@@ -103,7 +100,7 @@ impl Detector for DbNetDetector {
         let (db, mask, shape, ratio_w, ratio_h, pad_w, pad_h) =
             match shoud_rearrange(&img, options.detect_size as u32) {
                 true => {
-                    let v = |batch: ArrayView4<'_, u8>| -> Result<_, ProcessingError> {
+                    let v = |batch: ArrayView4<'_, u8>| -> anyhow::Result<_> {
                         det_batch_forward_default(session, batch)
                     };
                     let shape = (img.height, img.width);
@@ -123,7 +120,7 @@ impl Detector for DbNetDetector {
                         Interpolation::Bilinear,
                         1.0,
                         img_processor,
-                    );
+                    )?;
                     let ratio_h = 1.0 / resized.ratio;
                     let ratio_w = ratio_h;
                     let shape = (resized.img.height, resized.img.width);
@@ -197,7 +194,7 @@ impl Detector for DbNetDetector {
         let t_w = mask.width as usize * 2;
         let t_h = mask.height as usize * 2;
         let mut mask_resized =
-            img_processor.resize_mask(&mut mask, t_w, t_h, Interpolation::Bilinear);
+            img_processor.resize_mask(&mut mask, t_w, t_h, Interpolation::Bilinear)?;
         let new_mask_width = mask_resized.width - pad_w as DimType;
         let new_mask_height = mask_resized.height - pad_h as DimType;
         if pad_h > 0 || pad_w > 0 {

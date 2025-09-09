@@ -13,7 +13,7 @@ impl Models {
         img: DynamicImage,
         config: &Settings,
         debug_path: Option<PathBuf>,
-    ) -> Export {
+    ) -> anyhow::Result<Export> {
         let img_processor =
             Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Sync + Send>;
         let orig_img = img.clone();
@@ -154,7 +154,7 @@ impl Models {
             3,
             config.inpainter.furi,
             &img_processor,
-        );
+        )?;
 
         if let Some(debug_path) = &debug_path {
             mask_refined
@@ -177,7 +177,7 @@ impl Models {
             )
             .unwrap();
 
-        Export::new(
+        Ok(Export::new(
             orig_img,
             match alpha {
                 Some(a) => inpainted.add_a(a),
@@ -187,6 +187,6 @@ impl Models {
             .unwrap(),
             textblocks,
             None,
-        )
+        ))
     }
 }

@@ -180,7 +180,7 @@ pub fn complete_mask(
     keep_threshold: f64,
     dilation_offset: f64,
     kernel_size: i32,
-) -> Option<Mat> {
+) -> anyhow::Result<Option<Mat>> {
     let bboxes = textlines.iter().map(|v| v.aabb()).collect::<Vec<_>>();
     let polys = textlines.iter().map(|v| v.polygon()).collect::<Vec<_>>();
     let mut labels = Mat::default();
@@ -289,7 +289,7 @@ pub fn complete_mask(
     }
 
     if !valid {
-        return None;
+        return Ok(None);
     }
 
     let mut final_mask = Mat::zeros_size(mask.size().unwrap(), mask.typ())
@@ -339,7 +339,7 @@ pub fn complete_mask(
         let mut roi_mat = Mat::roi(&img, roi).unwrap().clone_pointee();
         let img_region = to_continuous(&mut roi_mat);
 
-        let cc_region = as_continuous(refine_mask(img_region, w1 as u32, h1 as u32, cc_region));
+        let cc_region = as_continuous(refine_mask(img_region, w1 as u32, h1 as u32, cc_region)?);
 
         let cc_region_shape = cc_region.shape();
         let mut cc = Mat::from_slice_mut(&mut cc.data).unwrap();
@@ -379,8 +379,7 @@ pub fn complete_mask(
         MORPH_ELLIPSE,
         Size::new(kernel_size, kernel_size),
         Point_::new(-1, -1),
-    )
-    .unwrap();
+    )?;
     let mut dst = Mat::default();
     dilate(
         &final_mask,
@@ -390,9 +389,8 @@ pub fn complete_mask(
         1,
         BORDER_CONSTANT,
         morphology_default_border_value().unwrap(),
-    )
-    .unwrap();
-    Some(dst)
+    )?;
+    Ok(Some(dst))
 }
 
 fn mask_to_feat_first(rawmask: Array2<u8>) -> ndarray::Array2<f32> {
@@ -427,7 +425,12 @@ fn unary_from_softmax(sm: Array2<f32>, clip: Option<f32>) -> Array2<f32> {
     sm_flat.mapv(|x| -x.ln())
 }
 
-fn refine_mask(rgbimg: &[u8], width: u32, height: u32, rawmask: RatioMat<u8>) -> Array2<u8> {
+fn refine_mask(
+    rgbimg: &[u8],
+    width: u32,
+    height: u32,
+    rawmask: RatioMat<u8>,
+) -> anyhow::Result<Array2<u8>> {
     let feat_first = mask_to_feat_first(
         Array2::from_shape_vec((rawmask.rows, rawmask.cols), rawmask.data).unwrap(),
     );
@@ -440,10 +443,10 @@ fn refine_mask(rgbimg: &[u8], width: u32, height: u32, rawmask: RatioMat<u8>) ->
             unary.as_slice().unwrap()
         }
     };
-    let res = densecrf::densecrf(unary, width, height, 2, rgbimg, 5);
-    res.axis_iter(Axis(1))
+    let res = densecrf::densecrf(unary, width, height, 2, rgbimg, 5)?;
+    Ok(res
+        .axis_iter(Axis(1))
         .map(|v| if v[0] >= v[1] { 0u8 } else { 255u8 })
         .collect::<Array1<_>>()
-        .into_shape((height as usize, width as usize))
-        .unwrap()
+        .into_shape((height as usize, width as usize))?)
 }

@@ -9,5 +9,5 @@ pub trait Upscaler {
         patch_size: Option<usize>,
         padding: usize,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
-    ) -> Result<RawImage, base_util::error::Error>;
+    ) -> anyhow::Result<RawImage>;
 }

@@ -12,3 +12,4 @@ interface-upscaler.workspace = true
 maplit.workspace = true
 half.workspace = true
 ndarray.workspace = true
+anyhow.workspace = true

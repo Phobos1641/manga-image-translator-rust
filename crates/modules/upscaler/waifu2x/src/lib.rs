@@ -1,9 +1,6 @@
 use std::{fmt::Display, sync::Arc};
 
-use base_util::{
-    error::PreProcessingError,
-    onnx::{new_session, Providers},
-};
+use base_util::onnx::{new_session, Providers};
 use interface_image::{combine_patches_m, generate_patches, DimType, ImageOp, RawImage};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
 use interface_upscaler::Upscaler;
@@ -101,7 +98,7 @@ impl ModelLoad for Waifu2xUpscaler {
         self.model.is_some()
     }
 
-    fn reload(&mut self) -> Result<&mut Session, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Session> {
         let model = self.model_kind.to_string();
         let path = self.download_model(&model, &format!("{model}.onnx"))?;
         let session = new_session(path, self.providers.clone())?;
@@ -248,7 +245,7 @@ fn pre_process(
     padding: usize,
     max_batch_size: usize,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
-) -> Result<Vec<Array4<f32>>, PreProcessingError> {
+) -> anyhow::Result<Vec<Array4<f32>>> {
     let pad_x = (8 - image.width % 8) % 8;
     let pad_y = (8 - image.height % 8) % 8;
     let w = image.width;
@@ -277,10 +274,7 @@ fn pre_process(
     )?)
 }
 
-fn process(
-    model: &mut Session,
-    batches: Vec<Array4<f32>>,
-) -> Result<Vec<Array3<u8>>, base_util::error::ProcessingError> {
+fn process(model: &mut Session, batches: Vec<Array4<f32>>) -> anyhow::Result<Vec<Array3<u8>>> {
     let mut processed_patches = vec![];
     for batch in batches {
         let t = Tensor::from_array(batch)?;
@@ -302,7 +296,7 @@ impl Upscaler for Waifu2xUpscaler {
         patch_size: Option<usize>,
         padding: usize,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
-    ) -> Result<RawImage, base_util::error::Error> {
+    ) -> anyhow::Result<RawImage> {
         let max_batch_size = self.max_batch_size;
         let w = image.width;
         let h = image.height;

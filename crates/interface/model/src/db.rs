@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use base_util::{error::ModelLoadError, project::root_path};
+use base_util::project::root_path;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, info};
@@ -21,12 +21,11 @@ impl ModelDb {
         file: &str,
         url: &str,
         hash: &str,
-    ) -> Result<PathBuf, ModelLoadError> {
+    ) -> anyhow::Result<PathBuf> {
         let base_path = root_path().join("models").join(kind).join(name);
         let mut file_path = base_path.join(file);
 
-        std::fs::create_dir_all(file_path.parent().expect("set above"))
-            .map_err(ModelLoadError::from)?;
+        std::fs::create_dir_all(file_path.parent().expect("set above"))?;
         let mut folder = false;
         let ret_file_path = file_path.clone();
         if file.contains("/") {
@@ -226,10 +225,10 @@ fn failure<P: AsRef<Path>>(base_path: Option<P>, file_path: P, expected_hash: &s
     }
 }
 
-fn download_and_extract(url: &str, file_path: &Path, folder: bool) -> Result<(), ModelLoadError> {
+fn download_and_extract(url: &str, file_path: &Path, folder: bool) -> anyhow::Result<()> {
     info!("Downloading from: {}", url);
 
-    let mut response = ureq::get(url).call().map_err(ModelLoadError::from)?;
+    let mut response = ureq::get(url).call()?;
     let total_size = response
         .headers()
         .get("Content-Length")

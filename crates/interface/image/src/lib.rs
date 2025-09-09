@@ -325,11 +325,17 @@ impl Mask {
         Ok(mat)
     }
 
-    pub fn as_nd(&self) -> ArrayView2<'_, u8> {
-        ArrayView2::from_shape((self.height as usize, self.width as usize), &self.data).unwrap()
+    pub fn as_nd(&self) -> anyhow::Result<ArrayView2<'_, u8>> {
+        Ok(ArrayView2::from_shape(
+            (self.height as usize, self.width as usize),
+            &self.data,
+        )?)
     }
-    pub fn to_nd(self) -> Array2<u8> {
-        Array2::from_shape_vec((self.height as usize, self.width as usize), self.data).unwrap()
+    pub fn to_nd(self) -> anyhow::Result<Array2<u8>> {
+        Ok(Array2::from_shape_vec(
+            (self.height as usize, self.width as usize),
+            self.data,
+        )?)
     }
 }
 
@@ -457,19 +463,19 @@ impl RawImage {
         Ok(mat)
     }
 
-    pub fn to_image(self) -> Option<DynamicImage> {
+    pub fn to_image(self) -> anyhow::Result<DynamicImage> {
         match self.channels == 4 {
             true => {
                 let rgba =
                     image::RgbaImage::from_raw(self.width as u32, self.height as u32, self.data)
-                        .unwrap();
-                Some(DynamicImage::ImageRgba8(rgba))
+                        .ok_or(anyhow::Error::msg("Failed to create RGBA image"))?;
+                Ok(DynamicImage::ImageRgba8(rgba))
             }
             false => {
                 let rgb =
                     image::RgbImage::from_raw(self.width as u32, self.height as u32, self.data)
-                        .unwrap();
-                Some(DynamicImage::ImageRgb8(rgb))
+                        .ok_or(anyhow::Error::msg("Failed to create RGB image"))?;
+                Ok(DynamicImage::ImageRgb8(rgb))
             }
         }
     }
@@ -521,14 +527,14 @@ pub trait ImageOp {
         width: DimType,
         height: DimType,
         interpolation: Interpolation,
-    ) -> RawImage;
+    ) -> anyhow::Result<RawImage>;
     fn resize_mask(
         &self,
         image: &Mask,
         width: usize,
         height: usize,
         interpolation: Interpolation,
-    ) -> Mask;
+    ) -> anyhow::Result<Mask>;
 
     fn remove_border_mask(&self, mask: Mask, width: DimType, height: DimType) -> Mask;
     fn bgr_to_rgb(&self, img: RawImage) -> RawImage;

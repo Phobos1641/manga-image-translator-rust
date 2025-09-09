@@ -11,7 +11,7 @@ use util::{
 pub fn load_masked_position_encoding(
     mut mask: Mask,
     op: &Arc<dyn ImageOp + Send + Sync>,
-) -> (Array2<i64>, Array3<i64>) {
+) -> anyhow::Result<(Array2<i64>, Array3<i64>)> {
     let (ori_h, ori_w) = (mask.height as usize, mask.width as usize);
 
     let d_filter1 = Input::from_slice_2d(&[[1.0f32, 1., 0.], [1., 1., 0.], [0., 0., 0.]]).unwrap();
@@ -24,15 +24,15 @@ pub fn load_masked_position_encoding(
     let pos_num = 128;
     let ori_mask = mask
         .clone()
-        .as_nd()
+        .as_nd()?
         .mapv(|v| if v > 127 { 1.0f32 } else { 0.0f32 });
     let mask = op.resize_mask(
         &mut mask,
         str_size,
         str_size,
         interface_image::Interpolation::Box,
-    );
-    let mask = mask.as_nd();
+    )?;
+    let mask = mask.as_nd()?;
     let (h, w) = (str_size, str_size);
     let mut mask3 = mask.view().mapv(|v| ((v == 0) as u8) as f32);
     let mut i = 0;
@@ -189,5 +189,5 @@ pub fn load_masked_position_encoding(
         )
         .unwrap()
     };
-    (rel_pos.mapv(|v| v as i64), direct)
+    Ok((rel_pos.mapv(|v| v as i64), direct))
 }

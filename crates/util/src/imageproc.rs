@@ -13,7 +13,7 @@ pub fn resize_aspect_ratio(
     interpolation: Interpolation,
     mag_ratio: f64,
     op: &Arc<dyn ImageOp + Send + Sync>,
-) -> ResizeData {
+) -> anyhow::Result<ResizeData> {
     let (height, width, _) = (img.height, img.width, img.channels);
     let mut target_size = mag_ratio * square_size as f64;
     if target_size > square_size as f64 {
@@ -30,7 +30,7 @@ pub fn resize_aspect_ratio(
         target_w as DimType,
         target_h as DimType,
         interpolation,
-    );
+    )?;
 
     const MULT: i32 = 256;
 
@@ -46,13 +46,13 @@ pub fn resize_aspect_ratio(
         target_w32 = target_w + pad_w
     }
     let resized = op.add_border_wh(proc, target_w32 as u16, target_h32 as u16);
-    ResizeData {
+    Ok(ResizeData {
         img: resized,
         ratio,
         heatmap: (target_w32 / 2, target_h32 / 2),
         pad_w,
         pad_h,
-    }
+    })
 }
 
 pub struct ResizeData {
@@ -114,7 +114,8 @@ mod tests {
         let mag_ratio = 1.5;
         let interpolation = Interpolation::Nearest;
 
-        let result = resize_aspect_ratio(img, square_size, interpolation, mag_ratio, &op);
+        let result = resize_aspect_ratio(img, square_size, interpolation, mag_ratio, &op)
+            .expect("Failed to resize");
 
         assert!(result.img.width % 256 == 0);
         assert!(result.img.height % 256 == 0);

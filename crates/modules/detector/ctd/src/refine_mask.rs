@@ -1,4 +1,3 @@
-use base_util::error::PostProcessingError;
 use imageproc::{
     distance_transform::Norm,
     image::{DynamicImage, GenericImageView, GrayImage},
@@ -23,7 +22,7 @@ pub fn refine_mask(
     mask: Mask,
     blk_list: Vec<Quadrilateral>,
     refinemask_inpaint: bool,
-) -> Result<Mask, PostProcessingError> {
+) -> anyhow::Result<Mask> {
     let mut mask_refined = Mat::zeros(mask.height as i32, mask.width as i32, CV_8U)?.to_mat()?;
     for blk in blk_list {
         let (bx1, by1, bx2, by2) = enlarge_window(blk.xyxy(), img.width, img.height, 2.5, 1.0);
@@ -39,8 +38,8 @@ pub fn refine_mask(
         );
         let im_gray = im.clone().into_luma8();
         let im_gray = Mask::from(im_gray);
-        let mut im_gray = im_gray.as_nd();
-        let msk = mask.as_nd();
+        let mut im_gray = im_gray.as_nd()?;
+        let msk = mask.as_nd()?;
         let msk = msk.slice(s![by1 as usize..by2 as usize, bx1 as usize..bx2 as usize]);
         let mut mask_list = get_topk_masklist(im_gray, &msk)?;
         mask_list.extend(get_otsuthresh_masklist(&RawImage::from(im), msk)?);
@@ -67,7 +66,7 @@ fn ndarray_to_gray_image(arr: &ArrayView2<u8>) -> GrayImage {
     GrayImage::from_raw(arr.dim().1 as u32, arr.dim().0 as u32, data).unwrap()
 }
 
-fn gray_image_to_ndarray(img: &GrayImage) -> Result<Array2<u8>, PostProcessingError> {
+fn gray_image_to_ndarray(img: &GrayImage) -> anyhow::Result<Array2<u8>> {
     let (width, height) = img.dimensions();
     let data = img.as_raw();
     Ok(Array2::from_shape_vec(
@@ -76,10 +75,7 @@ fn gray_image_to_ndarray(img: &GrayImage) -> Result<Array2<u8>, PostProcessingEr
     )?)
 }
 
-fn extract_candidates(
-    im_grey: &ArrayView2<u8>,
-    mask: &ArrayView2<u8>,
-) -> Result<Vec<u8>, PostProcessingError> {
+fn extract_candidates(im_grey: &ArrayView2<u8>, mask: &ArrayView2<u8>) -> anyhow::Result<Vec<u8>> {
     let mask_img = ndarray_to_gray_image(mask);
     let eroded_img = erode(&mask_img, Norm::LInf, 1);
     let eroded_mask = gray_image_to_ndarray(&eroded_img)?;
@@ -95,7 +91,7 @@ fn extract_candidates(
 fn get_topk_masklist(
     im_grey: ArrayView2<u8>,
     ped_mask: &ArrayView2<u8>,
-) -> Result<Vec<(Array2<u8>, u64)>, PostProcessingError> {
+) -> anyhow::Result<Vec<(Array2<u8>, u64)>> {
     let candidate_grey_px = extract_candidates(&im_grey, &ped_mask)?;
     let (bin, his) = histogram(&candidate_grey_px, 255);
     let topk_color = get_topk_color(his, bin, 3, 10, 0.001);
@@ -116,7 +112,7 @@ fn get_topk_masklist(
                 &mut threshed,
             )?;
             let threshed = Mask::from(threshed);
-            let threshed = threshed.as_nd();
+            let threshed = threshed.as_nd()?;
 
             let (threshed, xor_sum) = minxor_thresh(threshed, &ped_mask, false);
             Ok((threshed, xor_sum))
@@ -187,7 +183,7 @@ fn merge_mask_list_(
     label_index: i32,
     mask_merged: &mut Mat,
     pred_mask: &Mat,
-) -> Result<(), PostProcessingError> {
+) -> anyhow::Result<()> {
     let (x1, y1, x2, y2) = (x, y, x + w, y + h);
     let width = x2 - x1;
     let height = y2 - y1;
@@ -274,7 +270,7 @@ fn merge_mask_list(
     pred_mask: &Mask,
     pred_thresh: u32,
     refinemask_inpaint: bool,
-) -> Result<Mat, PostProcessingError> {
+) -> anyhow::Result<Mat> {
     mask_list.sort_by_key(|v| v.1);
 
     let pred_mask = if pred_thresh > 0 {
@@ -412,7 +408,7 @@ fn merge_mask_list(
 fn get_otsuthresh_masklist(
     img: &RawImage,
     pred_mask: ArrayView2<u8>,
-) -> Result<Vec<(Array2<u8>, u64)>, PostProcessingError> {
+) -> anyhow::Result<Vec<(Array2<u8>, u64)>> {
     let channels = img.channels();
     let h = img.height;
     let mask_list = channels
@@ -423,11 +419,11 @@ fn get_otsuthresh_masklist(
             let c = c.reshape(1, h as i32)?;
             opencv::imgproc::threshold(&c, &mut threshed, 1.0, 255.0, THRESH_OTSU | THRESH_BINARY)?;
             let threshed = Mask::from(threshed);
-            let threshed = threshed.as_nd();
+            let threshed = threshed.as_nd()?;
             let (threshed, xor_sum) = minxor_thresh(threshed, &pred_mask, false);
             Ok((threshed, xor_sum))
         })
-        .collect::<Result<Vec<_>, PostProcessingError>>()?;
+        .collect::<anyhow::Result<Vec<_>>>()?;
     Ok(vec![mask_list.into_iter().min_by_key(|v| v.1).unwrap()])
 }
 

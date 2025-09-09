@@ -53,7 +53,7 @@ impl ModelLoad for Anime4KUpscaler {
         self.model.is_some()
     }
 
-    fn reload(&mut self) -> Result<&mut Session, interface_model::ModelLoadError> {
+    fn reload(&mut self) -> anyhow::Result<&mut Session> {
         let model = self.model_kind.to_string();
         let path = self.download_model(&model, &format!("{model}.onnx"))?;
         let session = new_session(path, self.providers.clone())?;
@@ -92,7 +92,7 @@ impl Upscaler for Anime4KUpscaler {
         _: Option<usize>,
         _: usize,
         _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
-    ) -> Result<RawImage, base_util::error::Error> {
+    ) -> anyhow::Result<RawImage> {
         let image = image
             .clone()
             .as_ndarray()

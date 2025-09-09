@@ -72,14 +72,14 @@ pub fn dispatch(
     kernel_size: i32,
     furi: bool,
     image_op: &Arc<dyn ImageOp + Send + Sync>,
-) -> Mask {
+) -> anyhow::Result<Mask> {
     let raw_mask_ = if furi {
         Cow::Owned(image_op.resize_mask(
             raw_mask,
             raw_img.width as usize,
             raw_img.height as usize,
             interface_image::Interpolation::Nearest,
-        ))
+        )?)
     } else {
         Cow::Borrowed(raw_mask)
     };
@@ -98,15 +98,15 @@ pub fn dispatch(
             let n_w = (raw_img.width as f64 * scale_factor) as u16;
             let n_h = (raw_img.height as f64 * scale_factor) as u16;
             let mut img_resized =
-                image_op.resize(raw_img, n_w, n_h, interface_image::Interpolation::Nearest);
-            let img_resized = img_resized.as_opencv_mut_mat().unwrap();
+                image_op.resize(raw_img, n_w, n_h, interface_image::Interpolation::Nearest)?;
+            let img_resized = img_resized.as_opencv_mut_mat()?;
             let mut mask_resized = image_op.resize_mask(
                 raw_mask,
                 n_w as usize,
                 n_h as usize,
                 interface_image::Interpolation::Nearest,
-            );
-            let mask_resized = mask_resized.as_opencv_mut_mat().unwrap();
+            )?;
+            let mask_resized = mask_resized.as_opencv_mut_mat()?;
 
             let final_mask = complete_mask(
                 textlines,
@@ -115,7 +115,7 @@ pub fn dispatch(
                 1e-2,
                 dilation_offset,
                 kernel_size,
-            );
+            )?;
             match final_mask {
                 Some(mask) => {
                     let mut mask = Mask::from(mask);
@@ -125,8 +125,8 @@ pub fn dispatch(
                             size.0 as usize,
                             size.1 as usize,
                             interface_image::Interpolation::Nearest,
-                        )
-                        .to_nd();
+                        )?
+                        .to_nd()?;
                     mask.mapv_inplace(|v| if v > 0 { 255 } else { 0 });
                     let mask = Mask::from(mask);
                     mask.data
@@ -141,11 +141,11 @@ pub fn dispatch(
     };
 
     if ignore_bubble < 1 || ignore_bubble > 50 {
-        return Mask {
+        return Ok(Mask {
             width: size.0,
             height: size.1,
             data: final_mask,
-        };
+        });
     }
     let kernel_size = (size.0.max(size.1) as f64 * 0.025) as usize;
     let ones = vec![1_u8; kernel_size * kernel_size];
@@ -206,7 +206,7 @@ pub fn dispatch(
             .unwrap();
         }
     }
-    Mask::from(final_mask)
+    Ok(Mask::from(final_mask))
 }
 
 fn complete_mask_fill(size: (i64, i64), aabbs: Vec<BBox>) -> Vec<u8> {

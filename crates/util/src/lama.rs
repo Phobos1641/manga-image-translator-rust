@@ -6,7 +6,7 @@ pub fn resize_keep_aspect(
     mut img: RawImage,
     size: u16,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
-) -> RawImage {
+) -> anyhow::Result<RawImage> {
     let ratio = size as f64 / img.width.max(img.height) as f64;
     let new_width = img.width as f64 * ratio;
     let new_height = img.height as f64 * ratio;
@@ -23,7 +23,7 @@ pub fn resize_keep_aspect_mask(
     mut img: Mask,
     size: u16,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
-) -> Mask {
+) -> anyhow::Result<Mask> {
     let ratio = size as f64 / img.width.max(img.height) as f64;
     let new_width = img.width as f64 * ratio;
     let new_height = img.height as f64 * ratio;
@@ -41,14 +41,14 @@ pub fn lama_resize_image(
     mut mask: Mask,
     inpainting_size: u16,
     img_processor: &Arc<dyn ImageOp + Send + Sync>,
-) -> (RawImage, Mask) {
+) -> anyhow::Result<(RawImage, Mask)> {
     let w = image.width;
     let h = image.height;
     if w.max(h) > inpainting_size {
-        image = resize_keep_aspect(image, inpainting_size, img_processor);
-        mask = resize_keep_aspect_mask(mask, inpainting_size, img_processor);
+        image = resize_keep_aspect(image, inpainting_size, img_processor)?;
+        mask = resize_keep_aspect_mask(mask, inpainting_size, img_processor)?;
     }
-    (image, mask)
+    Ok((image, mask))
 }
 
 pub fn lama_add_border(
