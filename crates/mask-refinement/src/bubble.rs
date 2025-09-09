@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use anyhow::anyhow;
 use ndarray::{Array3, Axis};
 use opencv::{
     core::{Mat, MatTraitConst as _, MatTraitConstManual, CV_8U, CV_MAT_DEPTH},
@@ -12,8 +13,8 @@ use opencv::{
 ///     return：
 ///     True -- Colors with non black, gray, white, and other grayscale areas
 ///     False -- Images are all grayscale areas
-fn check_color(image: &Mat) -> bool {
-    let image = convert(&image).unwrap();
+fn check_color(image: &Mat) -> anyhow::Result<bool> {
+    let image = convert(&image)?;
     let weights = [0.299_f32, 0.587_f32, 0.114_f32];
     // Calculate grayscale version of the image using vectorized operations
     let gray_image = image.map_axis(Axis(2), |rgb| {
@@ -23,7 +24,10 @@ fn check_color(image: &Mat) -> bool {
     let gray_image = gray_image.insert_axis(Axis(2));
 
     // Calculate color distance for all pixels in a vectorized manner
-    let diff = &image - &gray_image.broadcast(image.dim()).unwrap();
+    let diff = &image
+        - &gray_image
+            .broadcast(image.dim())
+            .ok_or(anyhow!("failed to broadcast gray_image"))?;
 
     // Square each difference
     let sq = diff.map(|x| x.powi(2));
@@ -35,7 +39,7 @@ fn check_color(image: &Mat) -> bool {
     // Return True if there are more than 10 such pixels
     // TODO:
     // Proportion should be used
-    n > 10
+    Ok(n > 10)
 }
 
 fn convert(mat: &Mat) -> Result<Array3<f32>, ndarray::ShapeError> {
@@ -43,9 +47,14 @@ fn convert(mat: &Mat) -> Result<Array3<f32>, ndarray::ShapeError> {
     assert_eq!(CV_MAT_DEPTH(mat_type), CV_8U, "Expected CV_8U Mat");
     assert_eq!(mat.channels(), 3, "Expected single-channel grayscale Mat");
     let data = if mat.is_continuous() {
-        mat.data_bytes().unwrap().to_vec()
+        mat.data_bytes()
+            .expect("Checked is_continuous before")
+            .to_vec()
     } else {
-        mat.clone().data_bytes().unwrap().to_vec()
+        mat.clone()
+            .data_bytes()
+            .expect("Cloned mat before")
+            .to_vec()
     };
     let rows = mat.rows() as usize;
     let cols = mat.cols() as usize;
@@ -56,7 +65,7 @@ fn count_zero_pixels_in_range(
     mat: &Mat,
     row_range: Range<i32>,
     col_range: Range<i32>,
-) -> (i32, i32) {
+) -> anyhow::Result<(i32, i32)> {
     let roi = Mat::roi(
         mat,
         opencv::core::Rect::new(
@@ -65,20 +74,21 @@ fn count_zero_pixels_in_range(
             col_range.end - col_range.start, // width
             row_range.end - row_range.start, // height
         ),
-    )
-    .unwrap();
+    )?;
     if !roi.is_continuous() {
         let mut continuous_mat = Mat::default();
-        roi.copy_to(&mut continuous_mat).unwrap();
-        let roi_u8 = continuous_mat.data_bytes().unwrap();
+        roi.copy_to(&mut continuous_mat)?;
+        let roi_u8 = continuous_mat
+            .data_bytes()
+            .expect("Copied so is continuous");
         let zero_count = roi_u8.iter().filter(|&&v| v == 0).count() as i32;
         let total_count = roi_u8.len() as i32;
-        (zero_count, total_count)
+        Ok((zero_count, total_count))
     } else {
-        let roi_u8 = roi.data_bytes().unwrap();
+        let roi_u8 = roi.data_bytes().expect("checked to be continuous");
         let zero_count = roi_u8.iter().filter(|&&v| v == 0).count() as i32;
         let total_count = roi_u8.len() as i32;
-        (zero_count, total_count)
+        Ok((zero_count, total_count))
     }
 }
 
@@ -109,9 +119,13 @@ fn count_zero_pixels_in_range(
 ///     # 4. Connected bubble issue:
 ///     # Reason: The current logic is entirely based on the local environment of a single text box and cannot detect whether there is a shared bubble structure spanning multiple text boxes.
 ///     # Consequence: Unable to handle cases where a large or complex-shaped bubble contains multiple independent text blocks, nor can it determine which part of the bubble corresponds to which text block.
-pub fn is_ignore((width, height): (u16, u16), region_img: &Mat, ignore_bubble: u8) -> bool {
+pub fn is_ignore(
+    (width, height): (u16, u16),
+    region_img: &Mat,
+    ignore_bubble: u8,
+) -> anyhow::Result<bool> {
     if ignore_bubble < 1 || ignore_bubble > 50 {
-        return false;
+        return Ok(false);
     }
 
     let mut binary_raw_mask = Mat::default();
@@ -121,12 +135,11 @@ pub fn is_ignore((width, height): (u16, u16), region_img: &Mat, ignore_bubble: u
         127.0,
         255.0,
         THRESH_BINARY,
-    )
-    .unwrap();
+    )?;
 
     let mut total = 0;
     let mut val0 = 0;
-    let (zeros, count) = count_zero_pixels_in_range(&binary_raw_mask, 0..2, 0..width as i32);
+    let (zeros, count) = count_zero_pixels_in_range(&binary_raw_mask, 0..2, 0..width as i32)?;
     val0 += zeros;
     total += count;
 
@@ -134,11 +147,11 @@ pub fn is_ignore((width, height): (u16, u16), region_img: &Mat, ignore_bubble: u
         &binary_raw_mask,
         (height as i32 - 2)..height as i32,
         0..width as i32,
-    );
+    )?;
     val0 += zeros;
     total += count;
 
-    let (zeros, count) = count_zero_pixels_in_range(&binary_raw_mask, 2..height as i32 - 2, 0..2);
+    let (zeros, count) = count_zero_pixels_in_range(&binary_raw_mask, 2..height as i32 - 2, 0..2)?;
     val0 += zeros;
     total += count;
 
@@ -146,21 +159,21 @@ pub fn is_ignore((width, height): (u16, u16), region_img: &Mat, ignore_bubble: u
         &binary_raw_mask,
         2..height as i32 - 2,
         width as i32 - 2..width as i32,
-    );
+    )?;
     val0 += zeros;
     total += count;
 
     let ratio = round_to_places(val0 as f64 / total as f64, 6) * 100.0;
     // ignore
     if ratio >= ignore_bubble as f64 && ratio <= (100 - ignore_bubble) as f64 {
-        return true;
+        return Ok(true);
     }
     // To determine if there is color, consider the colored text as invalid information and skip it without translation
-    if check_color(region_img) {
+    Ok(if check_color(region_img)? {
         true
     } else {
         false
-    }
+    })
 }
 
 fn round_to_places(value: f64, places: u32) -> f64 {

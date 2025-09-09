@@ -149,10 +149,10 @@ pub fn dispatch(
     }
     let kernel_size = (size.0.max(size.1) as f64 * 0.025) as usize;
     let ones = vec![1_u8; kernel_size * kernel_size];
-    let kernel = Mat::from_slice(&ones).unwrap();
-    let kernel = kernel.reshape(1, kernel_size as i32).unwrap();
-    let final_mask = Mat::from_slice(&final_mask).unwrap();
-    let final_mask = final_mask.reshape(1, size.1 as i32).unwrap();
+    let kernel = Mat::from_slice(&ones)?;
+    let kernel = kernel.reshape(1, kernel_size as i32)?;
+    let final_mask = Mat::from_slice(&final_mask)?;
+    let final_mask = final_mask.reshape(1, size.1 as i32)?;
     let mut new_final_mask = Mat::default();
     dilate(
         &final_mask,
@@ -161,9 +161,8 @@ pub fn dispatch(
         Point::new(-1, -1),
         1,
         BORDER_CONSTANT,
-        morphology_default_border_value().unwrap(),
-    )
-    .unwrap();
+        morphology_default_border_value()?,
+    )?;
     let mut final_mask = new_final_mask;
 
     let mut contours = Vector::<Vector<Point>>::new();
@@ -174,24 +173,22 @@ pub fn dispatch(
         RETR_EXTERNAL,
         CHAIN_APPROX_SIMPLE,
         Point::default(),
-    )
-    .unwrap();
+    )?;
     for cnt in contours {
         let mut temp_mask = Mat::new_rows_cols_with_default(
             size.1 as i32,
             size.0 as i32,
             CV_8UC1,
             Scalar::all(0.0),
-        )
-        .unwrap();
+        )?;
         // # rect min
-        let rec = bounding_rect(&cnt).unwrap();
-        rectangle(&mut temp_mask, rec, Scalar::all(255.0), -1, LINE_8, 0).unwrap();
+        let rec = bounding_rect(&cnt)?;
+        rectangle(&mut temp_mask, rec, Scalar::all(255.0), -1, LINE_8, 0)?;
         // get textblock
-        let raw_image = raw_img.as_opencv_mat().unwrap();
+        let raw_image = raw_img.as_opencv_mat()?;
         let mut textblock = Mat::default();
-        bitwise_and(&raw_image, &raw_image, &mut textblock, &temp_mask).unwrap();
-        if is_ignore(size, &textblock, ignore_bubble) {
+        bitwise_and(&raw_image, &raw_image, &mut textblock, &temp_mask)?;
+        if is_ignore(size, &textblock, ignore_bubble)? {
             draw_contours(
                 &mut final_mask,
                 &vec![cnt].into_iter().collect::<Vector<Vector<Point>>>(),
@@ -202,8 +199,7 @@ pub fn dispatch(
                 &no_array(),
                 i32::MAX,
                 Point::default(),
-            )
-            .unwrap();
+            )?;
         }
     }
     Ok(Mask::from(final_mask))

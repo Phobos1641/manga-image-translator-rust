@@ -1,5 +1,6 @@
 use std::mem;
 
+use anyhow::anyhow;
 use geo::{
     Area, BooleanOps as _, Centroid, ConvexHull as _, Distance as _, Euclidean, MultiPoint, Point,
 };
@@ -196,12 +197,10 @@ pub fn complete_mask(
             1,
             LINE_8,
             0,
-        )
-        .unwrap();
+        )?;
     }
     let num_labels =
-        connected_components_with_stats(&mask, &mut labels, &mut stats, &mut centroids, 8, CV_32S)
-            .unwrap();
+        connected_components_with_stats(&mask, &mut labels, &mut stats, &mut centroids, 8, CV_32S)?;
     let m = textlines.len();
     let mut ratio_mat: RatioMat<f64> = RatioMat::new(num_labels as usize, m);
     let mut dist_mat: RatioMat<f64> = RatioMat::new(num_labels as usize, m);
@@ -214,15 +213,15 @@ pub fn complete_mask(
     let labels = RatioMatSlice::new(to_continuous(&mut labels), label_rows, label_cols);
 
     for label in 1..num_labels {
-        if *stats.at_2d::<i32>(label, CC_STAT_AREA).unwrap() <= 9 {
+        if *stats.at_2d::<i32>(label, CC_STAT_AREA)? <= 9 {
             continue;
         }
 
-        let x1 = *stats.at_2d::<i32>(label, CC_STAT_LEFT).unwrap();
-        let y1 = *stats.at_2d::<i32>(label, CC_STAT_TOP).unwrap();
-        let w1 = *stats.at_2d::<i32>(label, CC_STAT_WIDTH).unwrap();
-        let h1 = *stats.at_2d::<i32>(label, CC_STAT_HEIGHT).unwrap();
-        let area1 = *stats.at_2d::<i32>(label, CC_STAT_AREA).unwrap();
+        let x1 = *stats.at_2d::<i32>(label, CC_STAT_LEFT)?;
+        let y1 = *stats.at_2d::<i32>(label, CC_STAT_TOP)?;
+        let w1 = *stats.at_2d::<i32>(label, CC_STAT_WIDTH)?;
+        let h1 = *stats.at_2d::<i32>(label, CC_STAT_HEIGHT)?;
+        let area1 = *stats.at_2d::<i32>(label, CC_STAT_AREA)?;
         let cc_pts = [[x1, y1], [x1 + w1, y1], [x1 + w1, y1 + h1], [x1, y1 + h1]]
             .into_iter()
             .map(|v| Point::new(v[0] as f64, v[1] as f64));
@@ -236,7 +235,7 @@ pub fn complete_mask(
             dist_mat.set(
                 label_u,
                 tl_idx,
-                Euclidean.distance(poly, &cc_poly.centroid().unwrap()),
+                Euclidean.distance(poly, &cc_poly.centroid().ok_or(anyhow!("No centroid"))?),
             );
         }
         let mut avg = ratio_mat
@@ -247,7 +246,7 @@ pub fn complete_mask(
                 OrderedFloat(**v1).cmp(&OrderedFloat(**v2)).then(i2.cmp(i1)) // reverse to prefer the smaller index
             })
             .map(|v| v.0)
-            .unwrap();
+            .ok_or(anyhow!("unexpected shape"))?;
         let area2 = polys[avg].unsigned_area();
         if area1 as f64 >= area2 {
             continue;
@@ -260,7 +259,7 @@ pub fn complete_mask(
                 .enumerate()
                 .min_by_key(|(_, v)| OrderedFloat(**v))
                 .map(|v| v.0)
-                .unwrap();
+                .ok_or(anyhow!("empty row"))?;
             let unit = textlines[avg]
                 .font_size()
                 .min(w1 as f64)
@@ -292,15 +291,12 @@ pub fn complete_mask(
         return Ok(None);
     }
 
-    let mut final_mask = Mat::zeros_size(mask.size().unwrap(), mask.typ())
-        .unwrap()
-        .to_mat()
-        .unwrap();
+    let mut final_mask = Mat::zeros_size(mask.size()?, mask.typ())?.to_mat()?;
     let mut img_out = Mat::default();
-    bilateral_filter(&img, &mut img_out, 17, 80.0, 80.0, BORDER_DEFAULT).unwrap();
+    bilateral_filter(&img, &mut img_out, 17, 80.0, 80.0, BORDER_DEFAULT)?;
     let img = img_out;
     for (i, cc) in textline_ccs.iter_mut().enumerate() {
-        let [x1, y1, x2, y2] = textline_rects.get_row(i).try_into().unwrap();
+        let [x1, y1, x2, y2] = textline_rects.get_row(i).try_into()?;
         let w1 = x2 - x1;
         let h1 = y2 - y1;
 
@@ -320,8 +316,7 @@ pub fn complete_mask(
             MORPH_ELLIPSE,
             Size::new(dilate_size, dilate_size),
             Point_::new(-1, -1),
-        )
-        .unwrap();
+        )?;
         let cc_region = cc.slice_contiguous(y1 as usize, x1 as usize, (h1) as usize, (w1) as usize);
         let cc_region = match cc_region {
             Some(v) => v,
@@ -336,18 +331,22 @@ pub fn complete_mask(
 
         let roi = Rect::new(x, y, width, height);
 
-        let mut roi_mat = Mat::roi(&img, roi).unwrap().clone_pointee();
+        let mut roi_mat = Mat::roi(&img, roi)?.clone_pointee();
         let img_region = to_continuous(&mut roi_mat);
 
         let cc_region = as_continuous(refine_mask(img_region, w1 as u32, h1 as u32, cc_region)?);
 
         let cc_region_shape = cc_region.shape();
-        let mut cc = Mat::from_slice_mut(&mut cc.data).unwrap();
-        let mut cc = cc.reshape_mut(1, img.rows() as i32).unwrap();
-        let cc_region = Mat::from_slice(cc_region.as_slice().unwrap()).unwrap();
-        let cc_region = cc_region.reshape(1, cc_region_shape[0] as i32).unwrap();
-        let mut roi_mat = Mat::roi_mut(&mut cc, roi).unwrap();
-        cc_region.copy_to(&mut roi_mat).unwrap();
+        let mut cc = Mat::from_slice_mut(&mut cc.data)?;
+        let mut cc = cc.reshape_mut(1, img.rows() as i32)?;
+        let cc_region = Mat::from_slice(
+            cc_region
+                .as_slice()
+                .ok_or(anyhow!("cc_region is not continuous"))?,
+        )?;
+        let cc_region = cc_region.reshape(1, cc_region_shape[0] as i32)?;
+        let mut roi_mat = Mat::roi_mut(&mut cc, roi)?;
+        cc_region.copy_to(&mut roi_mat)?;
         let (x2, y2, w2, h2) =
             extend_rect(x1, y1, w1, h1, img.cols(), img.rows(), -(-dilate_size / 2));
         let x2 = x2.clamp(0, cc.cols() - 1);
@@ -356,7 +355,7 @@ pub fn complete_mask(
         let w2 = ((x + w2).min(cc.cols()) - x).max(0);
         let h2 = ((y + h2).min(cc.rows()) - y).max(0);
         let roi = Rect::new(x2, y2, w2, h2);
-        let src = Mat::roi(&cc, roi).unwrap();
+        let src = Mat::roi(&cc, roi)?;
         let mut temp = Mat::default();
         dilate(
             &src,
@@ -365,13 +364,12 @@ pub fn complete_mask(
             Point_::new(-1, -1),
             1,
             BORDER_CONSTANT,
-            morphology_default_border_value().unwrap(),
-        )
-        .unwrap();
-        let mut roi_mat = Mat::roi_mut(&mut final_mask, roi).unwrap();
+            morphology_default_border_value()?,
+        )?;
+        let mut roi_mat = Mat::roi_mut(&mut final_mask, roi)?;
         let roi_ptr: *mut BoxedRefMut<'_, Mat> = &mut roi_mat;
         unsafe {
-            bitwise_or(&*roi_ptr, &temp, &mut *roi_ptr, &no_array()).unwrap();
+            bitwise_or(&*roi_ptr, &temp, &mut *roi_ptr, &no_array())?;
         }
     }
 
@@ -388,29 +386,29 @@ pub fn complete_mask(
         Point_::new(-1, -1),
         1,
         BORDER_CONSTANT,
-        morphology_default_border_value().unwrap(),
+        morphology_default_border_value()?,
     )?;
     Ok(Some(dst))
 }
 
-fn mask_to_feat_first(rawmask: Array2<u8>) -> ndarray::Array2<f32> {
+fn mask_to_feat_first(rawmask: Array2<u8>) -> anyhow::Result<Array2<f32>> {
     let (h, w) = rawmask.dim();
 
     // (H, W) -> (H, W, 1)
-    let rawmask = rawmask.into_shape((h, w, 1)).unwrap();
+    let rawmask = rawmask.into_shape((h, w, 1))?;
 
     let invmask = rawmask.map(|&v| !v);
 
-    let mask_softmax: Array3<u8> = concatenate(Axis(2), &[invmask.view(), rawmask.view()]).unwrap();
+    let mask_softmax: Array3<u8> = concatenate(Axis(2), &[invmask.view(), rawmask.view()])?;
 
     let mask_softmax = mask_softmax.map(|&v| v as f32 / 255.0);
 
     let mask_softmax = mask_softmax.permuted_axes([2, 0, 1]);
 
-    mask_softmax.into_shape_clone((2, h * w)).unwrap()
+    Ok(mask_softmax.into_shape_clone((2, h * w))?)
 }
 
-fn unary_from_softmax(sm: Array2<f32>, clip: Option<f32>) -> Array2<f32> {
+fn unary_from_softmax(sm: Array2<f32>, clip: Option<f32>) -> anyhow::Result<Array2<f32>> {
     let num_cls = sm.shape()[0];
 
     let sm = if let Some(c) = clip {
@@ -420,9 +418,9 @@ fn unary_from_softmax(sm: Array2<f32>, clip: Option<f32>) -> Array2<f32> {
     };
 
     let rest = sm.len() / num_cls;
-    let sm_flat = sm.into_shape((num_cls, rest)).unwrap();
+    let sm_flat = sm.into_shape((num_cls, rest))?;
 
-    sm_flat.mapv(|x| -x.ln())
+    Ok(sm_flat.mapv(|x| -x.ln()))
 }
 
 fn refine_mask(
@@ -431,16 +429,19 @@ fn refine_mask(
     height: u32,
     rawmask: RatioMat<u8>,
 ) -> anyhow::Result<Array2<u8>> {
-    let feat_first = mask_to_feat_first(
-        Array2::from_shape_vec((rawmask.rows, rawmask.cols), rawmask.data).unwrap(),
-    );
+    let feat_first = mask_to_feat_first(Array2::from_shape_vec(
+        (rawmask.rows, rawmask.cols),
+        rawmask.data,
+    )?)?;
 
-    let mut unary = unary_from_softmax(feat_first, Some(1e-5));
+    let mut unary = unary_from_softmax(feat_first, Some(1e-5))?;
     let unary = match unary.as_slice() {
         Some(slice) => slice,
         None => {
             unary = unary.to_owned();
-            unary.as_slice().unwrap()
+            unary
+                .as_slice()
+                .ok_or(anyhow::anyhow!("is not contiguous"))?
         }
     };
     let res = densecrf::densecrf(unary, width, height, 2, rgbimg, 5)?;
