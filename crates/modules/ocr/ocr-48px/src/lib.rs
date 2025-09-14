@@ -1,4 +1,5 @@
-mod decode;
+mod hypo;
+mod infer;
 
 use std::{fs::read_to_string, ops::Deref, sync::Arc};
 
@@ -16,12 +17,12 @@ use util::{
     average::AvgMeter, resize::get_transformed_region, text_direction::generate_text_direction,
 };
 
-pub struct Ctc48pxOcr {
-    model: Option<(Session, Vec<String>)>,
+pub struct Ocr48px {
+    model: Option<((Session, Session, Session), Vec<String>)>,
     providers: Vec<Providers>,
 }
 
-impl Ctc48pxOcr {
+impl Ocr48px {
     pub fn new(providers: Vec<Providers>) -> Self {
         Self {
             model: None,
@@ -32,20 +33,20 @@ impl Ctc48pxOcr {
 
 pub struct Config {
     max_chunk_size: usize,
-    ignore_bubble: bool,
+    max_seq_len: i32,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             max_chunk_size: 16,
-            ignore_bubble: false,
+            max_seq_len: 255,
         }
     }
 }
 
-impl ModelLoad for Ctc48pxOcr {
-    type T = (Session, Vec<String>);
+impl ModelLoad for Ocr48px {
+    type T = ((Session, Session, Session), Vec<String>);
 
     fn loaded(&self) -> bool {
         self.model.is_some()
@@ -56,26 +57,32 @@ impl ModelLoad for Ctc48pxOcr {
     }
 
     fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
-        let model = self.download_model("model", "model.onnx")?;
-        let dict = self.download_model("alphabet-all-v5", "alphabet-all-v5.txt")?;
+        let decoder = self.download_model("decoder", "decoder.onnx")?;
+        let encoder = self.download_model("encoder", "encoder.onnx")?;
+        let color_pred = self.download_model("color_pred", "color_pred.onnx")?;
+        let dict = self.download_model("alphabet-all-v7", "alphabet-all-v7.txt")?;
         let dict = read_to_string(dict)
             .unwrap()
             .lines()
             .map(|v| v.trim_end().to_string())
             .collect::<Vec<String>>();
-        let model = new_session(model, self.providers.clone())?;
+        let encoder = new_session(encoder, self.providers.clone())?;
+        let color_pred = new_session(color_pred, self.providers.clone())?;
+        let decoder = new_session(decoder, self.providers.clone())?;
 
-        self.model = Some((model, dict));
+        self.model = Some(((encoder, decoder, color_pred), dict));
         Ok(self.model.as_mut().unwrap())
     }
 }
-impl Model for Ctc48pxOcr {
-    impl_model_load_helpers!("ocr", "ctc-48px");
+impl Model for Ocr48px {
+    impl_model_load_helpers!("ocr", "48px");
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
-            "model" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ctc-48px/model.onnx", hash: "###" },
-            "alphabet-all-v5" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ctc-48px/alphabet-all-v5.txt", hash: "###" }
+            "decoder" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/decoder.onnx", hash: "###" },
+            "encoder" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/encoder.onnx", hash: "###" },
+            "color_pred" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/color_pred.onnx", hash: "###" },
+            "alphabet-all-v7" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/alphabet-all-v7.txt", hash: "###" }
         }
     }
 
@@ -85,14 +92,13 @@ impl Model for Ctc48pxOcr {
 }
 
 #[async_trait::async_trait]
-impl Ocr for Ctc48pxOcr {
+impl Ocr for Ocr48px {
     async fn detect(
         &mut self,
         image: &Arc<RawImage>,
         areas: &[Arc<parking_lot::Mutex<Quadrilateral>>],
         _: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<QuadrilateralInfo>> {
-        //TODO: ignore bubble
         let mut out = vec![];
         let text_height = 48;
         let config = Config::default();
@@ -117,13 +123,13 @@ impl Ocr for Ctc48pxOcr {
             .map(|(v, _)| get_transformed_region(&*v.lock(), &img, text_height))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let (model, dict) = self.load()?;
+        let ((encoder, decoder, color_pred), dict) = self.load()?;
         let dict = &*dict;
         for indices in perm.chunks(config.max_chunk_size) {
             let n = indices.len();
             let img_slice = indices.iter().map(|v| &region_imgs[*v]).collect::<Vec<_>>();
             let widths = img_slice.iter().map(|v| v.cols()).collect::<Vec<_>>();
-            let max_width = widths.iter().max().copied().unwrap_or_default() as usize + 135;
+            let max_width = widths.iter().max().copied().unwrap_or_default() as usize + 7;
             let text_height = text_height as usize;
             let mut region = Array4::<u8>::zeros((n, text_height, max_width, 3));
             for (i, tmp) in img_slice.iter().enumerate() {
@@ -153,45 +159,82 @@ impl Ocr for Ctc48pxOcr {
             let images = region
                 .mapv(|v| (v as f32 - 127.5) / 127.5)
                 .permuted_axes([0, 3, 1, 2]);
-            let texts = decode::decode(model, images, 0);
-            for (i, single_line) in texts.into_iter().enumerate() {
-                if single_line.is_empty() {
-                    continue;
-                }
+            let texts = infer::infer(
+                encoder,
+                decoder,
+                color_pred,
+                images,
+                widths,
+                1,
+                2,
+                5,
+                config.max_seq_len,
+                2,
+            );
+            for (i, pred) in texts.into_iter().enumerate() {
                 let mut cur_texts = String::new();
-                let mut total = AvgMeter::default();
                 let mut avgs = [AvgMeter::default(); 6];
-                for (chid, logprob, fr, fg, fb, br, bg, bb) in single_line {
+                let pred_chars_index = pred.out_idx;
+                let fg_pred = pred.fg_pred;
+                assert_eq!(fg_pred.len(), pred_chars_index.len());
+                let has_fg = pred
+                    .fg_ind_pred
+                    .iter()
+                    .map(|v| (v.1 > v.0) as u32)
+                    .sum::<u32>() as f64
+                    / pred.fg_ind_pred.len() as f64
+                    > 0.5;
+                let has_bg = pred
+                    .bg_ind_pred
+                    .iter()
+                    .map(|v| (v.1 > v.0) as u32)
+                    .sum::<u32>() as f64
+                    / pred.bg_ind_pred.len() as f64
+                    > 0.5;
+                for (chid, fg_pred, bg_pred) in pred_chars_index
+                    .into_iter()
+                    .zip(fg_pred)
+                    .zip(pred.bg_pred)
+                    .map(|((x, y), z)| (x, y, z))
+                {
                     let mut ch = dict[chid as usize].as_str();
-                    if ch == "<SP>" {
+                    if ch == "<S>" {
+                        continue;
+                    } else if ch == "</S>" {
+                        break;
+                    } else if ch == "<SP>" {
                         ch = " ";
                     } else {
-                        avgs[0].update((fr * 255.0) as i32);
-                        avgs[1].update((fg * 255.0) as i32);
-                        avgs[2].update((fb * 255.0) as i32);
-                        avgs[3].update((br * 255.0) as i32);
-                        avgs[4].update((bg * 255.0) as i32);
-                        avgs[5].update((bb * 255.0) as i32);
+                        avgs[0].update((fg_pred.0 * 255.0).clamp(0.0, 255.0) as i32);
+                        avgs[1].update((fg_pred.1 * 255.0).clamp(0.0, 255.0) as i32);
+                        avgs[2].update((fg_pred.2 * 255.0).clamp(0.0, 255.0) as i32);
+                        avgs[3].update((bg_pred.0 * 255.0).clamp(0.0, 255.0) as i32);
+                        avgs[4].update((bg_pred.1 * 255.0).clamp(0.0, 255.0) as i32);
+                        avgs[5].update((bg_pred.2 * 255.0).clamp(0.0, 255.0) as i32);
                     }
                     cur_texts.push_str(ch);
-                    total.update(logprob);
                 }
-                let prob = total.average().exp();
 
                 out.push(QuadrilateralInfo {
                     text: cur_texts,
-                    fg: Some([
-                        avgs[0].average() as u8,
-                        avgs[1].average() as u8,
-                        avgs[2].average() as u8,
-                    ]),
-                    bg: Some([
-                        avgs[3].average() as u8,
-                        avgs[4].average() as u8,
-                        avgs[5].average() as u8,
-                    ]),
+                    fg: match has_fg {
+                        true => Some([
+                            avgs[0].average() as u8,
+                            avgs[1].average() as u8,
+                            avgs[2].average() as u8,
+                        ]),
+                        false => None,
+                    },
+                    bg: match has_bg {
+                        true => Some([
+                            avgs[3].average() as u8,
+                            avgs[4].average() as u8,
+                            avgs[5].average() as u8,
+                        ]),
+                        false => None,
+                    },
                     pos: areas[indices[i]].clone(),
-                    prob,
+                    prob: pred.prob as f64,
                 });
             }
         }
@@ -219,13 +262,13 @@ mod tests {
     use interface_ocr::Ocr as _;
     use parking_lot::Mutex;
 
-    use crate::Ctc48pxOcr;
+    use crate::Ocr48px;
 
     #[tokio::test]
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = Ctc48pxOcr::new(all_providers());
+        let mut mocr = Ocr48px::new(all_providers());
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],
@@ -240,8 +283,8 @@ mod tests {
         let mut v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
         v.sort_by_key(|a| a.text.len());
         assert_eq!(v[0].pos.lock().pts()[0].x, 76);
-        assert_eq!(v[1].text, "そうだなあ…");
         assert_eq!(v[0].text, "ふふっ、");
+        assert_eq!(v[1].text, "そうだなあ‥");
         assert_eq!(v.len(), 2);
     }
 }

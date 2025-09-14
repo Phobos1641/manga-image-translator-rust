@@ -246,8 +246,11 @@ mod tests {
             ))),
         ];
         let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        let v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
-        assert_eq!(v[0].text, "そうだなあ・・・");
+        let mut v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
+        v.sort_by_key(|a| a.text.len());
+        assert_eq!(v[0].pos.lock().pts()[0].x, 76);
+        assert_eq!(v[0].text, "ふふっ、");
+        assert_eq!(v[1].text, "そうだなあ・・・");
         assert_eq!(v.len(), 2);
     }
 }
