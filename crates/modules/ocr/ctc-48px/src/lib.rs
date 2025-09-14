@@ -114,8 +114,11 @@ impl Ocr for Ctc48pxOcr {
         //TODO: apply direction
         let region_imgs = quadrilaterals
             .iter()
-            .map(|(v, _)| get_transformed_region(&*v.lock(), &img, text_height))
+            .map(|(v, _)| {
+                Ok::<_, anyhow::Error>((get_transformed_region(&*v.lock(), &img, text_height)?, v))
+            })
             .collect::<Result<Vec<_>, _>>()?;
+        let (region_imgs, areas): (Vec<_>, Vec<_>) = region_imgs.into_iter().unzip();
 
         let (model, dict) = self.load()?;
         let dict = &*dict;
