@@ -52,6 +52,9 @@ jobs:
       - name: Checkout code
         if: matrix.platform.name == 'linux-x86_64'
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
       - name: Setup macOS
         if: matrix.platform.name == 'macos-arm64' || matrix.platform.name == 'macos-x86_64'
         uses: ./.github/actions/setup-macos

@@ -39,6 +39,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup macOS
         if: matrix.platform.name == 'macos-arm64'
