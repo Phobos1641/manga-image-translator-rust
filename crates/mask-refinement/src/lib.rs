@@ -92,7 +92,7 @@ pub fn dispatch(
 
     let final_mask = match method {
         Method::FitText => {
-            let scale_factor = ((raw_mask.height as f64 - raw_mask.height as f64 / 3.0)
+            let scale_factor = ((raw_mask.height as f64 - raw_img.height as f64 / 3.0)
                 / raw_mask.height as f64)
                 .clamp(0.5, 1.0);
             let n_w = (raw_img.width as f64 * scale_factor) as u16;
@@ -100,16 +100,21 @@ pub fn dispatch(
             let mut img_resized =
                 image_op.resize(raw_img, n_w, n_h, interface_image::Interpolation::Nearest)?;
             let img_resized = img_resized.as_opencv_mut_mat()?;
-            let mut mask_resized = image_op.resize_mask(
+            let mask_resized = image_op.resize_mask(
                 raw_mask,
                 n_w as usize,
                 n_h as usize,
                 interface_image::Interpolation::Nearest,
             )?;
+            let mut mask_resized =
+                Mask::from(mask_resized.as_nd()?.mapv(|v| if v > 0 { 255 } else { 0 }));
             let mask_resized = mask_resized.as_opencv_mut_mat()?;
 
             let final_mask = complete_mask(
-                textlines,
+                textlines
+                    .into_iter()
+                    .map(|v| v.scale(scale_factor))
+                    .collect(),
                 img_resized,
                 mask_resized,
                 1e-2,

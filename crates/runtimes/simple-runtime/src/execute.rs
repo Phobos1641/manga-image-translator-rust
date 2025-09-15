@@ -150,7 +150,7 @@ impl Models {
             &mask,
             mask_refinement::Method::FitText,
             config.inpainter.ignore_bubble.unwrap_or_default(),
-            0.0,
+            20.0,
             3,
             config.inpainter.furi,
             &img_processor,
@@ -158,6 +158,7 @@ impl Models {
 
         if let Some(debug_path) = &debug_path {
             mask_refined
+                .clone()
                 .to_image()
                 .unwrap()
                 .save(debug_path.join("4_mask_refined.png"))
@@ -168,7 +169,7 @@ impl Models {
             .get_inpainter(config.inpainter.inpainter)
             .inpaint(
                 &img,
-                mask,
+                mask_refined,
                 InpainterOptions {
                     inpainting_size: config.inpainter.inpainting_size,
                     color: config.inpainter.inpaint_color,
@@ -176,6 +177,14 @@ impl Models {
                 &img_processor,
             )
             .unwrap();
+        if let Some(debug_path) = &debug_path {
+            inpainted
+                .clone()
+                .to_image()
+                .unwrap()
+                .save(debug_path.join("2_inpainted.png"))
+                .unwrap();
+        }
 
         Ok(Export::new(
             orig_img,

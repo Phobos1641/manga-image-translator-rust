@@ -1,6 +1,6 @@
 use std::mem;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use geo::{
     Area, BooleanOps as _, Centroid, ConvexHull as _, Distance as _, Euclidean, MultiPoint, Point,
 };
@@ -257,7 +257,9 @@ pub fn complete_mask(
                 .get_row(label_u)
                 .iter()
                 .enumerate()
-                .min_by_key(|(_, v)| OrderedFloat(**v))
+                .min_by(|(i1, v1), (i2, v2)| {
+                    OrderedFloat(**v1).cmp(&OrderedFloat(**v2)).then(i2.cmp(i1))
+                })
                 .map(|v| v.0)
                 .ok_or(anyhow!("empty row"))?;
             let unit = textlines[avg]
@@ -265,7 +267,6 @@ pub fn complete_mask(
                 .min(w1 as f64)
                 .min(h1 as f64)
                 .max(10.0);
-
             if *dist_mat.get(label_u, avg) >= 0.5 * unit {
                 continue;
             }
@@ -297,6 +298,9 @@ pub fn complete_mask(
     let img = img_out;
     for (i, cc) in textline_ccs.iter_mut().enumerate() {
         let [x1, y1, x2, y2] = textline_rects.get_row(i).try_into()?;
+        if x1 == i32::MAX || y1 == i32::MAX || x2 == i32::MIN || y2 == i32::MIN {
+            bail!("x or y coordinate not updated")
+        }
         let w1 = x2 - x1;
         let h1 = y2 - y1;
 

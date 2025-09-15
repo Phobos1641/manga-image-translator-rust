@@ -1,6 +1,6 @@
 use std::{
     fmt::{self},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 mod cpu;
@@ -309,6 +309,19 @@ pub struct Mask {
 }
 
 impl Mask {
+    pub fn new(path: &str) -> anyhow::Result<Self> {
+        let path = PathBuf::from(path);
+        let img = image::open(&path)?;
+        let img = img.as_luma8().unwrap();
+        let (width, height) = img.dimensions();
+        let data = img.to_vec();
+        Ok(Self {
+            width: width as DimType,
+            height: height as DimType,
+            data,
+        })
+    }
+
     pub fn get(&self, x: usize, y: usize) -> u8 {
         self.data[x + y * self.width as usize]
     }

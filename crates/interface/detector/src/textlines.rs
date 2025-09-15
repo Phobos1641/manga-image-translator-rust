@@ -36,6 +36,15 @@ fn min_coords(pts: &[MyPoint; 4]) -> MyPoint {
 }
 
 impl Quadrilateral {
+    pub fn scale(mut self, factor: f64) -> Self {
+        self.pts = [
+            self.pts[0].scale(factor),
+            self.pts[1].scale(factor),
+            self.pts[2].scale(factor),
+            self.pts[3].scale(factor),
+        ];
+        self
+    }
     pub fn aabb(&self) -> BBox {
         let max_coord = max_coords(&self.pts);
         let min_coord = min_coords(&self.pts);
@@ -352,6 +361,12 @@ impl<T: Copy> From<(T, T)> for MyPoint<T> {
     }
 }
 impl MyPoint<i64> {
+    pub fn scale(self, factor: f64) -> Self {
+        Self {
+            x: (self.x as f64 * factor) as i64,
+            y: (self.y as f64 * factor) as i64,
+        }
+    }
     pub fn dist(&self, other: &Self) -> f64 {
         f64::sqrt((self.x - other.x).pow(2) as f64 + (self.y - other.y).pow(2) as f64)
     }
