@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 use base_util::onnx::{new_session, Providers};
 use interface_image::{ImageOp, RawImageCow};

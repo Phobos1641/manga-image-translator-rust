@@ -1,12 +1,10 @@
-use std::mem;
-
 use anyhow::{anyhow, bail};
 use base_util::{ndarray_utils, opencv_utils::as_slice};
 use geo::{
     Area, BooleanOps as _, Centroid, ConvexHull as _, Distance as _, Euclidean, MultiPoint, Point,
 };
 use interface_detector::textlines::Quadrilateral;
-use ndarray::{concatenate, Array, Array1, Array2, Array3, Axis, Dimension};
+use ndarray::{concatenate, Array1, Array2, Array3, Axis};
 use opencv::{
     boxed_ref::BoxedRefMut,
     core::{
@@ -15,8 +13,8 @@ use opencv::{
     },
     imgproc::{
         bilateral_filter, connected_components_with_stats, dilate, get_structuring_element,
-        morphology_default_border_value, morphology_ex, rectangle, CC_STAT_AREA, CC_STAT_HEIGHT,
-        CC_STAT_LEFT, CC_STAT_TOP, CC_STAT_WIDTH, LINE_8, MORPH_CLOSE, MORPH_ELLIPSE,
+        morphology_default_border_value, rectangle, CC_STAT_AREA, CC_STAT_HEIGHT, CC_STAT_LEFT,
+        CC_STAT_TOP, CC_STAT_WIDTH, LINE_8, MORPH_ELLIPSE,
     },
 };
 use ordered_float::OrderedFloat;
@@ -298,19 +296,19 @@ pub fn complete_mask(
             Size::new(dilate_size, dilate_size),
             Point_::new(-1, -1),
         )?;
-        let cc_region = cc.slice_contiguous(y1 as usize, x1 as usize, (h1) as usize, (w1) as usize);
+        let cc_region = cc.slice_contiguous(y1 as usize, x1 as usize, h1 as usize, w1 as usize);
         let cc_region = match cc_region {
             Some(v) => v,
             None => continue,
         };
 
-        let x = x1.clamp(0, img.cols() - 1);
-        let y = y1.clamp(0, img.rows() - 1);
+        let x1 = x1.clamp(0, img.cols() - 1);
+        let y1 = y1.clamp(0, img.rows() - 1);
 
-        let width = ((x + w1).min(img.cols()) - x).max(0);
-        let height = ((y + h1).min(img.rows()) - y).max(0);
+        let w1 = ((x1 + w1).min(img.cols()) - x1).max(0);
+        let h1 = ((y1 + h1).min(img.rows()) - y1).max(0);
 
-        let roi = Rect::new(x, y, width, height);
+        let roi = Rect::new(x1, y1, w1, h1);
 
         let mut roi_mat = Mat::roi(&img, roi)?.clone_pointee();
         let img_region = as_slice(&mut roi_mat);
@@ -329,8 +327,8 @@ pub fn complete_mask(
         let x2 = x2.clamp(0, cc.cols() - 1);
         let y2 = y2.clamp(0, cc.rows() - 1);
 
-        let w2 = ((x + w2).min(cc.cols()) - x).max(0);
-        let h2 = ((y + h2).min(cc.rows()) - y).max(0);
+        let w2 = ((x2 + w2).min(cc.cols()) - x2).max(0);
+        let h2 = ((y2 + h2).min(cc.rows()) - y2).max(0);
         let roi = Rect::new(x2, y2, w2, h2);
         let src = Mat::roi(&cc, roi)?;
         let mut temp = Mat::default();
@@ -366,20 +364,7 @@ pub fn complete_mask(
         morphology_default_border_value()?,
     )?;
 
-    let mut dst2 = Mat::default();
-
-    let kern = get_structuring_element(MORPH_ELLIPSE, Size::new(5, 5), Point_::new(-1, -1))?;
-    morphology_ex(
-        &dst,
-        &mut dst2,
-        MORPH_CLOSE,
-        &kern,
-        Point_::new(-1, -1),
-        1,
-        BORDER_CONSTANT,
-        morphology_default_border_value()?,
-    )?;
-    Ok(Some(dst2))
+    Ok(Some(dst))
 }
 
 fn mask_to_feat_first(rawmask: Array2<u8>) -> anyhow::Result<Array2<f32>> {
