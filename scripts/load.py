@@ -1,5 +1,14 @@
 import struct
 import numpy as np
+import PIL
+
+try:
+    import mit_renderer
+except ImportError:
+    print(
+        "install module with `pip install git+https://github.com/frederik-uni/manga-image-translator.git@renderer-module#subdirectory=pip-modules/mit-renderer`"
+    )
+    exit(1)
 
 
 def load_map(buffer: bytes, start_offset: int = 0) -> tuple[dict[str, str], int]:
@@ -40,6 +49,9 @@ class RustTextBlock:
         self.text = ""
         self.lines = None  # numpy array of shape (num_lines, 4, 2), dtype=int64
         self.translations = {}
+
+    def __repr__(self):
+        return f"RustTextBlock<{self.angle} degrees | {self.prob} | {self.text} >"
 
 
 def load_textblock(data: bytes) -> RustTextBlock:
@@ -103,6 +115,10 @@ class Image:
         self.raw = False
         self.data = None
 
+    def __repr__(self):
+        data_len = self.data.nbytes if self.data is not None else 0
+        return f"Image<{self.width}x{self.height} | {'raw' if self.raw else 'not raw'} | {data_len} bytes>"
+
 
 def load_image(data: bytes) -> Image:
     img = Image()
@@ -122,8 +138,14 @@ def load_image(data: bytes) -> Image:
     raw_data = data[offset : offset + data_len]
 
     if img.raw:
-        img.data = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-            (img.height, img.width)
+        total_pixels = img.height * img.width
+        total_values = len(raw_data)
+
+        channels = total_values // total_pixels
+        img.data = (
+            np.frombuffer(raw_data, dtype=np.uint8)
+            .reshape((img.height, img.width, channels))
+            .copy()
         )
     else:
         img.data = raw_data
@@ -132,10 +154,16 @@ def load_image(data: bytes) -> Image:
 
 
 class Patch:
+    info: RustTextBlock | None
+    bg: Image | None
+
     def __init__(self):
         self.pos = (0, 0)
         self.bg = None  # Image
         self.info = None  # RustTextBlock
+
+    def __repr__(self):
+        return f"Patch<{self.pos[0]}x{self.pos[1]} | {self.bg} | {self.info} >"
 
 
 def load_patch(data: bytes) -> Patch:
@@ -157,6 +185,8 @@ def load_patch(data: bytes) -> Patch:
 
 
 class Export:
+    img: Image
+
     def __init__(self):
         self.img = None  # Image
         self.patches = []
@@ -178,3 +208,76 @@ def load_export(data: bytes) -> Export:
     export.patches = patches
 
     return export
+
+
+def main():
+    import argparse
+    from pathlib import Path
+    import logging
+
+    parser = argparse.ArgumentParser(
+        description="Load and log an Export from a binary file."
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        type=Path,
+        required=True,
+        help="Path to the binary file to load",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        required=True,
+        help="Filepath/filename to save the rendered image to",
+    )
+    args = parser.parse_args()
+
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+
+    # Load the file
+    if not args.input.exists():
+        logging.error(f"File {args.input} does not exist!")
+        return
+
+    with open(args.input, "rb") as f:
+        data = f.read()
+
+    export = load_export(data)
+    img = export.img.data
+
+    for i, patch in enumerate(export.patches, start=1):
+        patch: Patch
+        x = patch.pos[0]
+        y = patch.pos[1]
+        patch_h, patch_w = patch.bg.height, patch.bg.width
+
+        ph = min(patch_h, img.shape[0] - y)
+        pw = min(patch_w, img.shape[1] - x)
+        mask = patch.bg.data[:ph, :pw, 3:4] >= 128
+        rgb_channels = img[..., :3]
+        rgb_channels[y : y + ph, x : x + pw] = patch.bg.data[:ph, :pw, :3] * mask + img[
+            y : y + ph, x : x + pw
+        ] * (1 - mask)
+        fg_color = tuple(c / 255 for c in (patch.info.fg_color or (0, 0, 0)))
+        bg_color = tuple(c / 255 for c in (patch.info.bg_color or (255, 255, 255)))
+        block = mit_renderer.TextBlock(
+            patch.info.lines,
+            [patch.info.text],
+            font_size=patch.info.font_size,
+            angle=patch.info.angle,
+            prob=patch.info.lines,
+            fg_color=fg_color,
+            bg_color=bg_color,
+        )
+        print(block)
+
+    image = PIL.Image.fromarray(img)
+
+    image.save(args.output)
+
+
+if __name__ == "__main__":
+    main()
