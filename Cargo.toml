@@ -104,6 +104,7 @@ argminmax = { version = "0.6.3", default-features = false, features = [
     "ndarray",
     "float",
 ] }
+schemars = "1.0.4"
 
 [patch.crates-io]
 clipper2c-sys = { git = "https://github.com/tirithen/clipper2c-sys" }

@@ -1,6 +1,7 @@
 pub mod ndarray_utils;
 #[cfg(feature = "onnx")]
 pub mod onnx;
+#[cfg(feature = "opencv")]
 pub mod opencv_utils;
 pub mod project;
 
