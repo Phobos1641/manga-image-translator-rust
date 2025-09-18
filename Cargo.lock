@@ -4829,16 +4829,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ocr-32px"
-version = "0.10.0"
-dependencies = [
- "image",
- "interface-image",
- "ndarray",
- "ort",
-]
-
-[[package]]
 name = "ocr-48px"
 version = "0.10.0"
 dependencies = [

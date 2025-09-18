@@ -190,6 +190,7 @@ fn blend_pixel4(s_rgba: [u8; 4], o_rgba: [u8; 4]) -> [u8; 4] {
 
 impl RawImage {
     pub fn add_a(mut self, a: Vec<u8>) -> Self {
+        assert_eq!(self.channels, 3);
         let mut result = Vec::with_capacity(self.data.len() + a.len());
         let chunks = self.data.chunks(self.channels as usize).collect::<Vec<_>>();
         assert_eq!(chunks.len(), a.len());
