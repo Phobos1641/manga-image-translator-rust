@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 ndarray.workspace = true
-opencv = { workspace = true, features = ["imgproc"] }
+opencv = { workspace = true, features = ["imgproc", "clang-runtime"] }
 image.workspace = true
 anyhow.workspace = true
 fast_image_resize.workspace = true
@@ -53,4 +53,3 @@ name = "rotate_left_mask_bench"
 harness = false
 
 [patch.crates-io]
-opencv = { git = "https://github.com/twistedfall/opencv-rust" }

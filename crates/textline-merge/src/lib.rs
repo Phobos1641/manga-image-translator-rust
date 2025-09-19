@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use geo::{ConvexHull, Distance as _, Euclidean, MinimumRotatedRect, MultiPoint, Point};
 use interface_detector::textlines::MyPoint;
 use interface_ocr::QuadrilateralInfo;
-use interface_translator::{is_valuable_text, Detector, Language};
+use interface_translator::{is_valuable_text, Detector, Language, LanguageWrapper};
 use itertools::Itertools as _;
 use log::info;
 use once_cell::sync::Lazy;
@@ -18,15 +18,16 @@ use petgraph::{
     graph::{NodeIndex, UnGraph},
     Graph,
 };
+use serde::{Deserialize, Serialize};
 use util::text_direction::{connected_components_sets, quadrilateral_can_merge_region};
 
 pub fn dispatch(
-    textlines: &[QuadrilateralInfo],
+    textlines: Vec<&QuadrilateralInfo>,
     width: u16,
     height: u16,
     det: &dyn Detector,
 ) -> anyhow::Result<Vec<TextBlock>> {
-    merge_bboxes_text_region(textlines, width, height)?
+    merge_bboxes_text_region(&textlines, width, height)?
         .into_iter()
         .map(|(txtlns, fg_color, bg_color)| {
             let mut total_logprobs = 0.0;
@@ -131,6 +132,7 @@ pub struct OBB {
     pub theta: f64,
 }
 
+#[derive(Deserialize, Serialize)]
 pub struct TextBlock {
     pub lines: Vec<[MyPoint; 4]>,
     pub text: String,
@@ -140,7 +142,7 @@ pub struct TextBlock {
     pub fg_color: Option<(u8, u8, u8)>,
     pub bg_color: Option<(u8, u8, u8)>,
     pub skip_translate: bool,
-    language: Option<Language>,
+    pub language: Option<LanguageWrapper>,
     pub translations: HashMap<String, String>,
 }
 
@@ -241,7 +243,7 @@ impl TextBlock {
             }
         }
         Self {
-            language: det.detect_language(&result),
+            language: det.detect_language(&result).map(LanguageWrapper),
             lines,
             text: result,
             font_size,
@@ -345,22 +347,22 @@ impl TextBlock {
     }
 }
 
-fn merge_bboxes_text_region(
-    bboxes: &[QuadrilateralInfo],
+fn merge_bboxes_text_region<'a>(
+    bboxes: &'a [&'a QuadrilateralInfo],
     width: u16,
     height: u16,
 ) -> anyhow::Result<
     Vec<(
-        Vec<&QuadrilateralInfo>,
+        Vec<&'a QuadrilateralInfo>,
         (Option<f64>, Option<f64>, Option<f64>),
         (Option<f64>, Option<f64>, Option<f64>),
     )>,
 > {
-    let mut graph: Graph<QuadrilateralInfo, (), petgraph::Undirected> = Graph::new_undirected();
+    let mut graph: Graph<usize, (), petgraph::Undirected> = Graph::new_undirected();
 
     // step 1: divide into multiple text region candidates
-    for bbox in bboxes.iter() {
-        graph.add_node(bbox.clone());
+    for (i, _) in bboxes.iter().enumerate() {
+        graph.add_node(i);
     }
     for ((u, ubox), (v, vbox)) in bboxes.iter().enumerate().tuple_combinations() {
         if quadrilateral_can_merge_region(
@@ -380,7 +382,7 @@ fn merge_bboxes_text_region(
     // step 2: postprocess - further split each region
     let region_indices = connected_components_sets(&graph)
         .into_iter()
-        .map(|v| split_text_region(bboxes, v, width, height, 0.5, 2.0))
+        .map(|v| split_text_region(&bboxes, v, width, height, 0.5, 2.0))
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .flatten()
@@ -431,7 +433,7 @@ fn merge_bboxes_text_region(
             } else {
                 nodes.sort_by_key(|a| OrderedFloat(bboxes[a.index()].pos.lock().centroid().y));
             }
-            let txtlns = nodes.iter().map(|v| &bboxes[v.index()]).collect::<Vec<_>>();
+            let txtlns = nodes.iter().map(|v| bboxes[v.index()]).collect::<Vec<_>>();
 
             (txtlns, (fg_r, fg_g, fg_b), (bg_r, bg_g, bg_b))
         })
@@ -462,7 +464,7 @@ fn stddev(values: &[f64]) -> Option<f64> {
 }
 
 fn split_text_region(
-    bboxes: &[QuadrilateralInfo],
+    bboxes: &[&QuadrilateralInfo],
     connected_region_indices: Vec<NodeIndex>,
     width: u16,
     height: u16,
@@ -619,10 +621,15 @@ pub fn dispatch_main(
     width: u16,
     height: u16,
     min_text_length: usize,
+    prob_thesh: f64,
     skip_languages: Vec<Language>,
     remove_text: &Vec<String>,
     det: &dyn Detector,
 ) -> anyhow::Result<Vec<TextBlock>> {
+    let textlines = textlines
+        .iter()
+        .filter(|v| v.prob >= prob_thesh)
+        .collect::<Vec<_>>();
     let text_regions = dispatch(textlines, width, height, det)?;
     Ok(text_regions
         .into_iter()
@@ -652,7 +659,7 @@ pub fn dispatch_main(
                 None
             } else {
                 if let Some(language) = region.language {
-                    if skip_languages.contains(&language) {
+                    if skip_languages.contains(&language.0) {
                         info!("Filtered out for translation: {}", stripped_text);
                         info!("Reason: Language should not be translated.");
                         region.skip_translate = true;

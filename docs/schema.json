@@ -27,17 +27,24 @@
       "description": "Settings for the inpainter module",
       "$ref": "#/$defs/InpainterSettings",
       "default": {
-        "furi": false,
-        "ignore_bubble": null,
         "inpaint_color": [
           255,
           255,
           255
         ],
         "inpainter": "LamaAot",
-        "inpainting_size": 2048,
+        "inpainting_size": 2048
+      }
+    },
+    "mask_refinement": {
+      "description": "Settings for the mask refinement",
+      "$ref": "#/$defs/MaskRefinementSettings",
+      "default": {
+        "dilation_offset": 20.0,
+        "furigana": false,
+        "ignore_bubble": 0,
         "kernel_size": 3,
-        "mask_dilation_offset": 20
+        "method": "FitText"
       }
     },
     "ocr": {
@@ -45,9 +52,9 @@
       "$ref": "#/$defs/OCRSettings",
       "default": {
         "filter_text": [],
-        "min_text_length": 0,
-        "ocr": "MangaOcr",
-        "prob": null,
+        "min_text_length": 1,
+        "ocr": "Ocr48px",
+        "prob": 0.2,
         "use_mocr_merge": false
       }
     },
@@ -65,8 +72,7 @@
         "target": {
           "target": "en",
           "translator": "Sugoi"
-        },
-        "translator": "Sugoi"
+        }
       }
     },
     "upscaler": {
@@ -159,21 +165,6 @@
     "InpainterSettings": {
       "type": "object",
       "properties": {
-        "furi": {
-          "type": "boolean",
-          "default": false
-        },
-        "ignore_bubble": {
-          "description": "The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "default": null,
-          "maximum": 255,
-          "minimum": 0
-        },
         "inpaint_color": {
           "description": "If no ai is used for inpainting than use this color",
           "type": "array",
@@ -202,21 +193,6 @@
           "format": "uint16",
           "default": 2048,
           "maximum": 65535,
-          "minimum": 0
-        },
-        "kernel_size": {
-          "description": "Set the convolution kernel size of the text erasure area to completely clean up text residues\"",
-          "type": "integer",
-          "format": "uint8",
-          "default": 3,
-          "maximum": 255,
-          "minimum": 0
-        },
-        "mask_dilation_offset": {
-          "description": "By how much to extend the text mask to remove left-over text pixels of the original image.",
-          "type": "integer",
-          "format": "uint32",
-          "default": 20,
           "minimum": 0
         }
       }
@@ -2331,20 +2307,64 @@
         }
       ]
     },
+    "MaskRefinementSettings": {
+      "type": "object",
+      "properties": {
+        "dilation_offset": {
+          "description": "By how much to extend the text mask to remove left-over text pixels of the original image.\nbigger means the mask gets extended further",
+          "type": "number",
+          "format": "double",
+          "default": 20.0
+        },
+        "furigana": {
+          "description": "Mask gets extended to the right/top to cover furigana characters",
+          "type": "boolean",
+          "default": false
+        },
+        "ignore_bubble": {
+          "description": "The threshold for ignoring text in non bubble areas, with valid values ranging from 1 to 50, does not ignore others. Recommendation 5 to 10. If it is too low, normal bubble areas may be ignored, and if it is too large, non bubble areas may be considered normal bubbles",
+          "type": "integer",
+          "format": "uint8",
+          "default": 0,
+          "maximum": 255,
+          "minimum": 0
+        },
+        "kernel_size": {
+          "description": "Set the convolution kernel size of the text erasure area to completely clean up text residues\nbigger means the mask gets extended further",
+          "type": "integer",
+          "format": "uint8",
+          "default": 3,
+          "maximum": 255,
+          "minimum": 0
+        },
+        "method": {
+          "$ref": "#/$defs/Method",
+          "default": "FitText"
+        }
+      }
+    },
+    "Method": {
+      "type": "string",
+      "enum": [
+        "FitText",
+        "FillMask"
+      ]
+    },
     "OCR": {
       "type": "string",
       "enum": [
         "MangaOcr",
         "Native",
         "Tesseract",
-        "Ctc48px"
+        "Ctc48px",
+        "Ocr48px"
       ]
     },
     "OCRSettings": {
       "type": "object",
       "properties": {
         "filter_text": {
-          "description": "Filter regions by their text with a regex. Example usage: '.*badtext.*'\ntodo: regex",
+          "description": "Filter regions by their text with a regex. Example usage: '.*badtext.*'",
           "type": "array",
           "default": [],
           "items": {
@@ -2355,22 +2375,19 @@
           "description": "Minimum text length of a text region",
           "type": "integer",
           "format": "uint",
-          "default": 0,
+          "default": 1,
           "minimum": 0
         },
         "ocr": {
           "description": "Optical character recognition (OCR) model to use",
           "$ref": "#/$defs/OCR",
-          "default": "MangaOcr"
+          "default": "Ocr48px"
         },
         "prob": {
-          "description": "Minimum probability of a text region to be considered valid. If None, uses the model default\ntodo: not used",
-          "type": [
-            "number",
-            "null"
-          ],
-          "format": "float",
-          "default": null
+          "description": "Minimum probability of a text region to be considered valid. If None, uses the model default",
+          "type": "number",
+          "format": "double",
+          "default": 0.2
         },
         "use_mocr_merge": {
           "description": "Use bbox merge when Manga OCR inference.\ntodo: not used",
@@ -2477,7 +2494,7 @@
           "description": "Filters out languages that should not be translated",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/LanguageWrapper"
           }
         },
         "pre_dict": {
@@ -2488,13 +2505,9 @@
         },
         "target": {
           "$ref": "#/$defs/Target"
-        },
-        "translator": {
-          "$ref": "#/$defs/Translator"
         }
       },
       "required": [
-        "translator",
         "target",
         "filter_lang"
       ]

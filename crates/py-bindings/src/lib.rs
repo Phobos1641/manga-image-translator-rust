@@ -61,7 +61,7 @@ pub fn textline_merge_dispatch(
             pos: Arc::new(parking_lot::Mutex::new(Quadrilateral::new(v.1, v.2))),
         })
         .collect::<Vec<_>>();
-    let out = textline_merge::dispatch(&items, width, height, &det)
+    let out = textline_merge::dispatch(items.iter().collect(), width, height, &det)
         .map_err(|v| PyRuntimeError::new_err(v.to_string()))?;
     Ok(out
         .into_iter()

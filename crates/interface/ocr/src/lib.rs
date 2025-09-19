@@ -3,6 +3,7 @@ use std::sync::Arc;
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, RawImage};
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 
 #[async_trait::async_trait]
 pub trait Ocr {
@@ -14,7 +15,7 @@ pub trait Ocr {
     ) -> anyhow::Result<Vec<QuadrilateralInfo>>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuadrilateralInfo {
     pub text: String,
     pub fg: Option<[u8; 3]>,

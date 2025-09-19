@@ -512,9 +512,10 @@ impl fmt::Debug for RawImage {
 }
 
 impl Mask {
-    pub fn to_image(self) -> Option<image::GrayImage> {
+    pub fn to_image(self) -> anyhow::Result<image::GrayImage> {
         #[cfg(feature = "u16-dims")]
-        return image::GrayImage::from_raw(self.width as u32, self.height as u32, self.data);
+        return image::GrayImage::from_raw(self.width as u32, self.height as u32, self.data)
+            .ok_or(anyhow::Error::msg("Failed to create RGBA image"));
         #[cfg(not(feature = "u16-dims"))]
         image::GrayImage::from_raw(self.width, self.height, self.data)
     }

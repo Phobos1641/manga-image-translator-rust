@@ -69,7 +69,7 @@ dependencies = [
 [[package]]
 name = "aio-translator"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-baidu",
  "aio-translator-caiyun",
@@ -97,7 +97,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-baidu"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -110,7 +110,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-caiyun"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -121,7 +121,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-deepl"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -134,7 +134,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-google"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -146,7 +146,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-interface"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-lang-generator",
  "anyhow",
@@ -161,7 +161,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-jparacrawl"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -176,7 +176,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-lang-generator"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "csv",
  "heck 0.5.0",
@@ -193,7 +193,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-langid"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "langid-rs",
@@ -202,7 +202,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-m2m100"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -216,7 +216,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-mbart50"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -230,7 +230,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-mymemory"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -242,7 +242,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-nllb"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -256,7 +256,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-none"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "reqwest",
@@ -265,7 +265,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-original"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "reqwest",
@@ -274,7 +274,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-papago"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -290,7 +290,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-sugoi"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "anyhow",
@@ -305,7 +305,7 @@ dependencies = [
 [[package]]
 name = "aio-translator-youdao"
 version = "1.0.0"
-source = "git+https://github.com/frederik-uni/aio-translator#1fb5b1fa7c7b4c3f456211d5baa32affa503c670"
+source = "git+https://github.com/frederik-uni/aio-translator#2b7b1240269993f2e5322ab0f365f057050a1762"
 dependencies = [
  "aio-translator-interface",
  "async-trait",
@@ -797,7 +797,7 @@ dependencies = [
 [[package]]
 name = "base-util"
 version = "0.10.0"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#22228f30d1a123596fc72d1954f31fbe1eeec721"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#7976bb4a5f561c0c8599a28c7059cf9f108718cb"
 dependencies = [
  "anyhow",
  "ndarray",
@@ -1016,9 +1016,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.37"
+version = "1.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65193589c6404eb80b450d618eaf9a2cafaaafd57ecce47370519ef674a7bd44"
+checksum = "80f41ae168f955c12fb8960b057d70d0ca153fb83182b57d86380443527be7e9"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1313,7 +1313,7 @@ dependencies = [
  "serde-untagged",
  "serde_core",
  "serde_json",
- "toml 0.9.6",
+ "toml 0.9.7",
  "winnow",
  "yaml-rust2",
 ]
@@ -1531,9 +1531,9 @@ dependencies = [
 
 [[package]]
 name = "cssparser"
-version = "0.34.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7c66d1cd8ed61bf80b38432613a7a2f09401ab8d0501110655f8b341484a3e3"
+checksum = "4e901edd733a1472f944a45116df3f846f54d37e67e68640ac8bb69689aca2aa"
 dependencies = [
  "cssparser-macros",
  "dtoa-short",
@@ -1636,9 +1636,9 @@ checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "cxx"
-version = "1.0.184"
+version = "1.0.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be4a0beb369d20d0de6aa7084ee523e4c9a31d7d8c61ba357b119bb574d7f368"
+checksum = "2f81de88da10862f22b5b3a60f18f6f42bbe7cb8faa24845dd7b1e4e22190e77"
 dependencies = [
  "cc",
  "cxx-build",
@@ -1651,9 +1651,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.184"
+version = "1.0.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27d955b93e56a8e45cbc34df0ae920d8b5ad01541a4571222c78527c00e1a40a"
+checksum = "5edd58bf75c3fdfc80d79806403af626570662f7b6cc782a7fabe156166bd6d6"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -1666,9 +1666,9 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.184"
+version = "1.0.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "052f6c468d9dabdc2b8b228bcb2d7843b2bea0f3fb9c4e2c6ba5852574ec0150"
+checksum = "fd46bf2b541a4e0c2d5abba76607379ee05d68e714868e3cb406dc8d591ce2d2"
 dependencies = [
  "clap 4.5.47",
  "codespan-reporting",
@@ -1680,15 +1680,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.184"
+version = "1.0.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fd145fa180986cb8002c63217d03b2c782fdcd5fa323adcd1f62d2d6ece6144"
+checksum = "2c79b68f6a3a8f809d39b38ae8af61305a6113819b19b262643b9c21353b92d9"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.184"
+version = "1.0.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02ac4a3bc4484a2daa0a8421c9588bd26522be9682a2fe02c7087bc4e8bc3c60"
+checksum = "862b7fdb048ff9ef0779a0d0a03affd09746c4c875543746b640756be9cff2af"
 dependencies = [
  "indexmap",
  "proc-macro2 1.0.101",
@@ -1817,9 +1817,18 @@ dependencies = [
 
 [[package]]
 name = "derive_more"
-version = "0.99.20"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
+checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
 dependencies = [
  "proc-macro2 1.0.101",
  "quote 1.0.40",
@@ -2363,9 +2372,9 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
-version = "0.16.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf04c5ec15464ace8355a7b440a33aece288993475556d461154d7a62ad9947c"
+checksum = "998b056554fbe42e03ae0e152895cd1a7e1002aec800fdc6635d20270260c46f"
 dependencies = [
  "bit-set",
  "regex-automata",
@@ -2433,9 +2442,9 @@ dependencies = [
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fd99930f64d146689264c637b5af2f0233a933bef0d8570e2526bf9e083192d"
+checksum = "1ced73b1dacfc750a6db6c0a0c3a3853c8b41997e2e2c563dc90804ae6867959"
 
 [[package]]
 name = "fixedbitset"
@@ -2952,6 +2961,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5419bdc4f6a9207fbeba6d11b604d481addf78ecd10c11ad51e76c2f6482748d"
+
+[[package]]
 name = "hashlink"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3032,12 +3047,11 @@ dependencies = [
 
 [[package]]
 name = "html5ever"
-version = "0.29.1"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b7410cae13cbc75623c98ac4cbfd1f0bedddf3227afc24f370cf0f50a44a11c"
+checksum = "55d958c2f74b664487a2035fe1dadb032c48718a03b63f3ab0b8537db8549ed4"
 dependencies = [
  "log",
- "mac",
  "markup5ever",
  "match_token",
 ]
@@ -3411,12 +3425,12 @@ checksum = "d0263a3d970d5c054ed9312c0057b4f3bde9c0b33836d3637361d4a9e6e7a408"
 
 [[package]]
 name = "indexmap"
-version = "2.11.3"
+version = "2.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92119844f513ffa41556430369ab02c295a3578af21cf945caa3e9e0c2481ac3"
+checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
 ]
 
 [[package]]
@@ -3521,7 +3535,7 @@ dependencies = [
 [[package]]
 name = "interface-model"
 version = "0.10.0"
-source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#22228f30d1a123596fc72d1954f31fbe1eeec721"
+source = "git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master#7976bb4a5f561c0c8599a28c7059cf9f108718cb"
 dependencies = [
  "anyhow",
  "base-util 0.10.0 (git+https://github.com/frederik-uni/manga-image-translator-rust?branch=master)",
@@ -3544,6 +3558,7 @@ dependencies = [
  "interface-detector",
  "interface-image",
  "parking_lot",
+ "serde",
 ]
 
 [[package]]
@@ -3560,6 +3575,9 @@ name = "interface-translator"
 version = "0.10.0"
 dependencies = [
  "aio-translator",
+ "schemars",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3838,9 +3856,9 @@ dependencies = [
 
 [[package]]
 name = "langid-rs"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "701ca126411aceac02674f79a9661267914c2f42f5cba6c9c00f7060504a2aa7"
+checksum = "13737fdd7a7043346109f6481c4ffe0c85a26eb786b9228a46ee3ef202241322"
 
 [[package]]
 name = "lapack-sys"
@@ -3961,6 +3979,7 @@ checksum = "96936507f153605bddfcda068dd804796c84324ed2510809e5b2a624c81da765"
 dependencies = [
  "autocfg",
  "scopeguard",
+ "serde",
 ]
 
 [[package]]
@@ -4019,16 +4038,13 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "markup5ever"
-version = "0.14.1"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a7213d12e1864c0f002f52c2923d4556935a43dec5e71355c2760e0f6e7a18"
+checksum = "311fe69c934650f8f19652b3946075f0fc41ad8757dbb68f1ca14e7900ecc1c3"
 dependencies = [
  "log",
- "phf",
- "phf_codegen",
- "string_cache",
- "string_cache_codegen",
  "tendril",
+ "web_atoms",
 ]
 
 [[package]]
@@ -4046,14 +4062,16 @@ dependencies = [
  "ndarray-npy",
  "opencv",
  "ordered-float",
+ "schemars",
+ "serde",
  "textline-merge",
 ]
 
 [[package]]
 name = "match_token"
-version = "0.1.0"
+version = "0.35.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a9689d8d44bf9964484516275f5cd4c9b59457a6940c1d5d0ecbb94510a36b"
+checksum = "ac84fd3f360fcc43dc5f5d186f02a94192761a080e8bc58621ad4d12296a58cf"
 dependencies = [
  "proc-macro2 1.0.101",
  "quote 1.0.40",
@@ -4872,13 +4890,15 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 [[package]]
 name = "opencv"
 version = "0.95.1"
-source = "git+https://github.com/twistedfall/opencv-rust#10f921c930f81e5ade9d1be8f754eeb21da3e67f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c73b6fccd78797a87cdb885c997351a1a290b0ebde778e996b694dec2a4c04a"
 dependencies = [
  "cc",
  "dunce",
  "jobserver",
  "libc",
  "num-traits",
+ "once_cell",
  "opencv-binding-generator",
  "pkg-config",
  "semver",
@@ -4890,11 +4910,13 @@ dependencies = [
 [[package]]
 name = "opencv-binding-generator"
 version = "0.97.0"
-source = "git+https://github.com/twistedfall/opencv-rust#10f921c930f81e5ade9d1be8f754eeb21da3e67f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "010a78e4cc47ff85cf58fb1cbbbab9dcdb8e5e6718917eac26623f077872d012"
 dependencies = [
  "clang",
  "clang-sys",
  "dunce",
+ "once_cell",
  "percent-encoding",
  "regex",
  "shlex",
@@ -5415,7 +5437,7 @@ version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "219cb19e96be00ab2e37d6e299658a0cfa83e52429179969b0f0121b4ac46983"
 dependencies = [
- "toml_edit 0.23.5",
+ "toml_edit 0.23.6",
 ]
 
 [[package]]
@@ -6118,9 +6140,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.31"
+version = "0.23.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0ebcbd2f03de0fc1122ad9bb24b127a5a6cd51d72604a3f3c50ac459762b6cc"
+checksum = "cd3c25631629d034ce7cd9940adc9d45762d46de2b0f57193c4443b92c6d4d40"
 dependencies = [
  "log",
  "once_cell",
@@ -6289,9 +6311,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scraper"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "527e65d9d888567588db4c12da1087598d0f6f8b346cc2c5abc91f05fc2dffe2"
+checksum = "e5f3a24d916e78954af99281a455168d4a9515d65eca99a18da1b813689c4ad9"
 dependencies = [
  "cssparser",
  "ego-tree",
@@ -6333,9 +6355,9 @@ dependencies = [
 
 [[package]]
 name = "selectors"
-version = "0.26.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd568a4c9bb598e291a08244a5c1f5a8a6650bee243b5b0f8dbb3d9cc1d87fe8"
+checksum = "5685b6ae43bfcf7d2e7dfcfb5d8e8f61b46442c902531e41a32a9a8bf0ee0fb6"
 dependencies = [
  "bitflags 2.9.4",
  "cssparser",
@@ -6450,9 +6472,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2789234a13a53fc4be1b51ea1bab45a3c338bdb884862a257d10e5a74ae009e6"
+checksum = "5417783452c2be558477e104686f7de5dae53dba813c28435e0e70f82d9b04ee"
 dependencies = [
  "serde_core",
 ]
@@ -7050,6 +7072,7 @@ dependencies = [
  "once_cell",
  "ordered-float",
  "petgraph",
+ "serde",
  "util",
 ]
 
@@ -7238,13 +7261,13 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.9.6"
+version = "0.9.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae2a4cf385da23d1d53bc15cdfa5c2109e93d8d362393c801e87da2f72f0e201"
+checksum = "00e5e5d9bf2475ac9d4f0d9edab68cc573dc2fd644b0dba36b0c30a92dd9eaa0"
 dependencies = [
  "serde_core",
- "serde_spanned 1.0.1",
- "toml_datetime 0.7.1",
+ "serde_spanned 1.0.2",
+ "toml_datetime 0.7.2",
  "toml_parser",
  "winnow",
 ]
@@ -7260,9 +7283,9 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.7.1"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a197c0ec7d131bfc6f7e82c8442ba1595aeab35da7adbf05b6b73cd06a16b6be"
+checksum = "32f1085dec27c2b6632b04c80b3bb1b4300d6495d1e129693bdda7d91e72eec1"
 dependencies = [
  "serde_core",
 ]
@@ -7283,21 +7306,21 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.23.5"
+version = "0.23.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2ad0b7ae9cfeef5605163839cb9221f453399f15cfb5c10be9885fcf56611f9"
+checksum = "f3effe7c0e86fdff4f69cdd2ccc1b96f933e24811c5441d44904e8683e27184b"
 dependencies = [
  "indexmap",
- "toml_datetime 0.7.1",
+ "toml_datetime 0.7.2",
  "toml_parser",
  "winnow",
 ]
 
 [[package]]
 name = "toml_parser"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b551886f449aa90d4fe2bdaa9f4a2577ad2dde302c61ecf262d80b116db95c10"
+checksum = "4cf893c33be71572e0e9aa6dd15e6677937abd686b066eac3f8cd3531688a627"
 dependencies = [
  "winnow",
 ]
@@ -7992,6 +8015,18 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "web_atoms"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57ffde1dc01240bdf9992e3205668b235e59421fd085e8a317ed98da0178d414"
+dependencies = [
+ "phf",
+ "phf_codegen",
+ "string_cache",
+ "string_cache_codegen",
 ]
 
 [[package]]

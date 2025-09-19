@@ -7,8 +7,8 @@ use opencv::{
     imgproc::{polylines, LINE_8},
 };
 
-pub fn render_bboxes(img: &RawImage, qu: &[Quadrilateral], path: &PathBuf) {
-    let mut img = img.as_opencv_mat().unwrap().clone_pointee();
+pub fn render_bboxes(img: &RawImage, qu: &[Quadrilateral], path: &PathBuf) -> anyhow::Result<()> {
+    let mut img = img.as_opencv_mat()?.clone_pointee();
     for q in qu {
         let pts = q
             .pts()
@@ -23,13 +23,10 @@ pub fn render_bboxes(img: &RawImage, qu: &[Quadrilateral], path: &PathBuf) {
             2,
             LINE_8,
             0,
-        )
-        .unwrap();
+        )?;
     }
-    RawImage::try_from(img)
-        .unwrap()
-        .to_image()
-        .unwrap()
-        .save(path.join("1_bboxes_unfiltered.png"))
-        .unwrap()
+    RawImage::try_from(img)?
+        .to_image()?
+        .save(path.join("1_bboxes_unfiltered.png"))?;
+    Ok(())
 }

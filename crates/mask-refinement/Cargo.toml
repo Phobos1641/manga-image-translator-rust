@@ -18,5 +18,8 @@ argminmax = { workspace = true, default-features = false, features = [
     "float",
 ] }
 anyhow.workspace = true
+serde = { workspace = true, features = ["derive"] }
+schemars.workspace = true
+
 [dev-dependencies]
 ndarray-npy.workspace = true

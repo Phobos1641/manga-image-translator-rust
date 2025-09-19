@@ -371,7 +371,9 @@ async def main():
         block = mit_renderer.TextBlock(
             patch.info.lines,
             [patch.info.text],
-            translation=patch.info.translations.get("translated"),
+            translation=patch.info.translations.get(
+                patch.info.translations.get("last_trans")
+            ),
             font_size=patch.info.font_size,
             angle=patch.info.angle,
             prob=patch.info.lines,

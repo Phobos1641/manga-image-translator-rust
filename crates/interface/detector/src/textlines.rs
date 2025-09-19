@@ -4,8 +4,9 @@ use std::{
 };
 
 use geo::{Area as _, ConvexHull as _, Distance, Euclidean, MultiPoint, Point, Polygon};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quadrilateral {
     pts: [MyPoint; 4],
     score: f64,
@@ -346,7 +347,7 @@ fn sort_pnts(pts: [(i64, i64); 4]) -> ([MyPoint; 4], bool) {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MyPoint<T = i64>
 where
     T: Copy,

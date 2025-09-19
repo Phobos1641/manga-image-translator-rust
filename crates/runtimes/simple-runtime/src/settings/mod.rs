@@ -1,5 +1,6 @@
 mod detector;
 mod inpainter;
+mod mask_refinement;
 mod ocr;
 mod render;
 mod translator;
@@ -10,7 +11,8 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::settings::{
     detector::Detector, detector::DetectorSettings, inpainter::Inpainter,
-    inpainter::InpainterSettings, ocr::OCRSettings, ocr::OCR, render::RenderSettings,
+    inpainter::InpainterSettings, mask_refinement::MaskRefinementSettings, ocr::OCRSettings,
+    ocr::OCR, render::RenderSettings, translator::Target, translator::Translation,
     translator::Translator, translator::TranslatorSettings, upscaler::Upscaler,
     upscaler::UpscalerSettings,
 };
@@ -27,6 +29,9 @@ pub struct Settings {
 
     /// Settings for the OCR module
     pub ocr: OCRSettings,
+
+    /// Settings for the mask refinement
+    pub mask_refinement: MaskRefinementSettings,
 
     /// Settings for the inpainter module
     pub inpainter: InpainterSettings,

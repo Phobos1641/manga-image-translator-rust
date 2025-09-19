@@ -111,4 +111,3 @@ schemars = "1.0.4"
 [patch.crates-io]
 clipper2c-sys = { git = "https://github.com/tirithen/clipper2c-sys" }
 clipper2 = { git = "https://github.com/frederik-uni/clipper2", branch = "offset" }
-opencv = { git = "https://github.com/twistedfall/opencv-rust" }

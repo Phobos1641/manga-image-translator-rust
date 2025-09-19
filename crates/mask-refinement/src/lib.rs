@@ -15,6 +15,8 @@ use opencv::{
         rectangle, CHAIN_APPROX_SIMPLE, LINE_8, RETR_EXTERNAL,
     },
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use textline_merge::TextBlock;
 
 use crate::{
@@ -26,6 +28,7 @@ use crate::{
     fill_text::complete_mask,
 };
 
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Method {
     FitText,
     FillMask,
