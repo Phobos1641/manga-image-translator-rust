@@ -11,9 +11,9 @@ runs:
       shell: powershell
       run: choco install opencv
 
-    - name: Upgrade LLVM
-      shell: powershell
-      run: choco upgrade llvm
+    # - name: Upgrade LLVM
+    #   shell: powershell
+    #   run: choco upgrade llvm
     - name: Find OpenCV library and set environment variables
       shell: pwsh
       run: |
