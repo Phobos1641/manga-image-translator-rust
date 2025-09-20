@@ -27,6 +27,12 @@ $env:OPENCV_LINK_PATHS = $libPath # the parent folder of the opencv_world*.lib f
 $env:OPENCV_INCLUDE_PATHS = $includePath # most likely "C:\tools\opencv\build\include"
 $env:Path = "C:\tools\opencv\build\x64\vc16\bin;" + $env:Path
 
+or permanent
+
+[System.Environment]::SetEnvironmentVariable("OPENCV_LINK_LIBS", "opencv_world4110", "User")
+[System.Environment]::SetEnvironmentVariable("OPENCV_LINK_PATHS", "C:\tools\opencv\build\x64\vc16\lib", "User")
+[System.Environment]::SetEnvironmentVariable("OPENCV_INCLUDE_PATHS", "C:\tools\opencv\build\include", "User")
+[System.Environment]::SetEnvironmentVariable("Path", "C:\tools\opencv\build\x64\vc16\bin;" + $env:Path, "User")
 ```
 
 [Path to long error 1](https://stackoverflow.com/questions/22575662/filename-too-long-in-git-for-windows)
