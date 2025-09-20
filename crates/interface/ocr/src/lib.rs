@@ -20,6 +20,27 @@ pub struct QuadrilateralInfo {
     pub text: String,
     pub fg: Option<[u8; 3]>,
     pub bg: Option<[u8; 3]>,
+    #[serde(with = "mutex_arc")]
     pub pos: Arc<Mutex<Quadrilateral>>,
     pub prob: f64,
+}
+
+mod mutex_arc {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(val: &Arc<Mutex<Quadrilateral>>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        val.lock().serialize(s)
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Arc<Mutex<Quadrilateral>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = Quadrilateral::deserialize(d)?;
+        Ok(Arc::new(Mutex::new(inner)))
+    }
 }

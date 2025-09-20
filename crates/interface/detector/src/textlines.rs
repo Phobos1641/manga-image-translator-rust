@@ -46,6 +46,11 @@ impl Quadrilateral {
         ];
         self
     }
+
+    pub fn set_vert(&mut self, vert: bool) {
+        self.vertical = vert;
+    }
+
     pub fn aabb(&self) -> BBox {
         let max_coord = max_coords(&self.pts);
         let min_coord = min_coords(&self.pts);

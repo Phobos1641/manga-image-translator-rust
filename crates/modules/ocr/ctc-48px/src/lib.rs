@@ -116,6 +116,11 @@ impl Ocr for Ctc48pxOcr {
         //TODO: apply direction
         let region_imgs = quadrilaterals
             .iter()
+            .map(|v| {
+                let vert = v.1;
+                v.0.lock().set_vert(vert);
+                v
+            })
             .map(|(v, _)| {
                 Ok::<_, anyhow::Error>((get_transformed_region(&*v.lock(), &img, text_height)?, v))
             })
@@ -150,6 +155,14 @@ impl Ocr for Ctc48pxOcr {
                         );
                 }
             }
+            // for (i, img) in region.axis_iter(Axis(0)).enumerate() {
+            //     RawImageCow::from(img)
+            //         .to_owned()
+            //         .to_image()
+            //         .unwrap()
+            //         .save(format!("image_{}.png", i))
+            //         .unwrap();
+            // }
             let images = region
                 .mapv(|v| (v as f32 - 127.5) / 127.5)
                 .permuted_axes([0, 3, 1, 2]);
@@ -211,6 +224,20 @@ mod tests {
     use parking_lot::Mutex;
 
     use crate::Ctc48pxOcr;
+
+    // #[tokio::test]
+    // async fn ocr_test2() {
+    //     let img = RawImage::new("0_input.png").unwrap();
+    //     let mut mocr = Ctc48pxOcr::new(Arc::new(all_providers()));
+    //     let pts:Vec<Quadrilateral> = serde_json::from_slice(include_bytes!("1_quadrilateral.json")).unwrap();
+    //     let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
+    //     let inp = pts
+    //         .into_iter()
+    //         .map(|v| Arc::new(Mutex::new(v)))
+    //         .collect::<Vec<_>>();
+    //     let v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
+    //     println!("{:?}", v);
+    // }
 
     #[tokio::test]
     async fn ocr_test() {

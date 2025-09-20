@@ -15,6 +15,7 @@ impl Models {
         config: &OCRSettings,
         config2: &TranslatorSettings,
     ) -> anyhow::Result<Vec<TextBlock>> {
+        assert!(!textlines.is_empty());
         textline_merge::dispatch_main(
             textlines,
             width,

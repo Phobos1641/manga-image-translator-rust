@@ -11,6 +11,7 @@ impl Models {
         config: &MaskRefinementSettings,
         img_processor: &ImageProcessor,
     ) -> anyhow::Result<Mask> {
+        assert!(!textblocks.is_empty());
         mask_refinement::dispatch(
             &textblocks,
             &img,

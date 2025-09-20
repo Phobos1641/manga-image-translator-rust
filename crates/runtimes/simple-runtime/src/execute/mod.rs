@@ -27,7 +27,7 @@ impl Models {
         img: DynamicImage,
         config: &Settings,
         debug_path: Option<PathBuf>,
-    ) -> anyhow::Result<Export> {
+    ) -> anyhow::Result<Option<Export>> {
         let ip = Arc::new(CpuImageProcessor::default()) as ImageProcessor;
         let (img, alpha) = RawImage::rgba(img);
         let (img, alpha) = self.run_upscaler(img, alpha, config.upscaler, &ip)?;
@@ -43,6 +43,9 @@ impl Models {
             save_json(&areas, &debug_path.join("1_quadrilateral.json"))?;
             render_bboxes(&img, &areas, debug_path)?;
         }
+        if areas.is_empty() {
+            return Ok(None);
+        }
 
         let areas = areas.into_iter().map(to_mutex).collect::<Vec<_>>();
         let upscaled_img = Arc::new(img);
@@ -50,6 +53,10 @@ impl Models {
         let textlines = self
             .run_ocr(&upscaled_img, &areas, &config.ocr, &ip)
             .await?;
+
+        if textlines.is_empty() {
+            return Ok(None);
+        }
 
         if let Some(debug_path) = &debug_path {
             save_json(&textlines, &debug_path.join("2_quadrilateral.json"))?;
@@ -62,6 +69,9 @@ impl Models {
             &config.ocr,
             &config.translator,
         )?;
+        if textblocks.is_empty() {
+            return Ok(None);
+        }
 
         if let Some(debug_path) = &debug_path {
             save_json(&textblocks, &debug_path.join("3_textblock.json"))?;
@@ -112,7 +122,7 @@ impl Models {
             save_img(&img, &debug_path.join("5_inpainted.png"))?;
         }
 
-        Ok(Export::new(
+        Ok(Some(Export::new(
             match alpha {
                 Some(a) => upscaled_img.as_ref().clone().add_a(a),
                 None => upscaled_img.as_ref().clone(),
@@ -121,7 +131,7 @@ impl Models {
             inpainted.to_image()?,
             textblocks,
             None,
-        ))
+        )))
     }
 }
 

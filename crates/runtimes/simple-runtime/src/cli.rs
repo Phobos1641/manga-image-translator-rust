@@ -25,4 +25,12 @@ pub struct Cli {
     /// Overwrite already translated images
     #[arg(long)]
     pub overwrite: bool,
+
+    /// uses cuda for translator
+    #[arg(long)]
+    pub cuda: bool,
+
+    /// maximum batch size for cuda
+    #[arg(long, default_value_t = 2)]
+    pub max_batch_size: usize,
 }

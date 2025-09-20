@@ -52,8 +52,14 @@ pub fn get_transformed_region(
         .map(|v| Point2f::new((v.x - x1) as f32, (v.y - y1) as f32))
         .collect::<Vector<Point2f>>();
 
-    let w = text_height.max(2);
-    let h = ((text_height as f64 * ratio).round() as u32).max(2);
+    let h = text_height.max(2);
+    let (w, h) = if q.vertical() {
+        let w = ((text_height as f64 * ratio).round() as u32).max(2);
+        (h, w)
+    } else {
+        let w = ((text_height as f64 / ratio).round() as u32).max(2);
+        (w, h)
+    };
     let dst_points = [
         Point2f::new(0.0, 0.0),
         Point2f::new(w as f32 - 1.0, 0.0),

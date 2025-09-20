@@ -27,6 +27,7 @@ impl Models {
         mut textblocks: Vec<TextBlock>,
         translators: &[Translation],
     ) -> anyhow::Result<Vec<TextBlock>> {
+        assert!(!textblocks.is_empty());
         let mut textblocks_use = textblocks
             .iter_mut()
             .filter(|v| !v.skip_translate)

@@ -10,8 +10,11 @@ image.workspace = true
 anyhow.workspace = true
 fast_image_resize.workspace = true
 rayon.workspace = true
-base-util = { workspace = true, default-features = false }
+base-util = { workspace = true, default-features = false, features = [
+    "opencv",
+] }
 ureq.workspace = true
+
 [dev-dependencies]
 criterion.workspace = true
 

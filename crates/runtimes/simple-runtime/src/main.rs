@@ -93,7 +93,7 @@ async fn main() {
             })
             .collect::<Vec<_>>();
     }
-    let mut models = Models::new(2, true, false).await;
+    let mut models = Models::new(cli.max_batch_size, true, cli.cuda).await;
     for path in input {
         info!("Processing {}", path.display());
         let mut output = cli.output.join(&path);
@@ -118,6 +118,13 @@ async fn main() {
             None
         };
         let exp = models.execute(img, &settings, debug_path).await.unwrap();
+        let exp = match exp {
+            Some(v) => v,
+            None => {
+                info!("Failed to detect any translatable content");
+                continue;
+            }
+        };
         if settings.render.renderer == Renderer::Html {
             let (data, _) = HtmlRenderer::render(vec![exp], None, false);
             output.set_extension("html");
