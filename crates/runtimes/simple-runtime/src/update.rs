@@ -1,3 +1,4 @@
+use ort::execution_providers::{CUDAExecutionProvider, ExecutionProvider};
 use reqwest::Client;
 use semver::Version;
 use serde::Deserialize;
@@ -6,6 +7,11 @@ use serde::Deserialize;
 struct Release {
     tag_name: String,
     html_url: String,
+}
+
+pub fn check_cuda() -> bool {
+    let cuda = CUDAExecutionProvider::default();
+    cuda.is_available().unwrap_or_default()
 }
 
 pub async fn check_crate_version(repo: &str) -> Result<bool, Box<dyn std::error::Error>> {

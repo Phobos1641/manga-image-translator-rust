@@ -13,7 +13,7 @@ use walkdir::WalkDir;
 use crate::{
     settings::{Renderer, Settings},
     setup::Models,
-    update::check_crate_version,
+    update::{check_crate_version, check_cuda},
 };
 
 pub mod cli;
@@ -53,7 +53,10 @@ async fn main() {
         .expect("Failed to run egui");
         return;
     }
-
+    let cuda = check_cuda();
+    if !cuda && cfg!(all(target_arch = "x86_64", not(target_os = "macos"))) {
+        warn!("CUDA is not available")
+    }
     let cli = cli::Cli::parse();
     let _ = check_crate_version("frederik-uni/manga-image-translator-rust").await;
     let mut input = WalkDir::new(&cli.input)
@@ -93,7 +96,13 @@ async fn main() {
             })
             .collect::<Vec<_>>();
     }
-    let mut models = Models::new(cli.max_batch_size, true, cli.cuda).await;
+    let mut models = Models::new(
+        cli.max_batch_size_upscaler,
+        cli.max_batch_size_ocr,
+        true,
+        cuda,
+    )
+    .await;
     for path in input {
         info!("Processing {}", path.display());
         let mut output = cli.output.join(&path);

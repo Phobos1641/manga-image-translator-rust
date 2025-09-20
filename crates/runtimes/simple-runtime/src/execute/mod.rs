@@ -51,7 +51,7 @@ impl Models {
         let upscaled_img = Arc::new(img);
 
         let textlines = self
-            .run_ocr(&upscaled_img, &areas, &config.ocr, &ip)
+            .run_ocr(&upscaled_img, &areas, &config.ocr, &debug_path, &ip)
             .await?;
 
         if textlines.is_empty() {

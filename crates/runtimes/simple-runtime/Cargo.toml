@@ -31,6 +31,7 @@ tesseract.workspace = true
 schemars.workspace = true
 ocr-48px.workspace = true
 html.workspace = true
+ort = { workspace = true, features = ["cuda"] }
 
 strum = "0.27.2"
 strum_macros = "0.27.2"

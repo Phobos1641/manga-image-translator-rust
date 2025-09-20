@@ -46,14 +46,19 @@ impl Models {
     pub fn get_inpainter(&mut self, inpainter: Inpainter) -> &mut InpainterType {
         self.inpainters.get(inpainter)
     }
-    pub async fn new(max_batch_size: usize, fast: bool, cuda: bool) -> Self {
+    pub async fn new(
+        max_batch_size_upscaler: usize,
+        max_batch_size_ocr: usize,
+        fast: bool,
+        cuda: bool,
+    ) -> Self {
         //TODO: providers based on input
         Models {
             lang_detector: LangIdDetector::new().unwrap(),
             detectors: Detectors::new(),
-            upscalers: Upscalers::new(max_batch_size, fast),
+            upscalers: Upscalers::new(max_batch_size_upscaler, fast),
             inpainters: Inpainters::new(),
-            ocrs: OCRs::new(),
+            ocrs: OCRs::new(max_batch_size_ocr),
             translators: Translators::new(cuda).await,
         }
     }

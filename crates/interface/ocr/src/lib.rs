@@ -1,9 +1,14 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, RawImage};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+
+#[derive(Default)]
+pub struct OcrOptions {
+    pub debug_path: Option<PathBuf>,
+}
 
 #[async_trait::async_trait]
 pub trait Ocr {
@@ -11,6 +16,7 @@ pub trait Ocr {
         &mut self,
         image: &Arc<RawImage>,
         areas: &[Arc<Mutex<Quadrilateral>>],
+        options: OcrOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<QuadrilateralInfo>>;
 }

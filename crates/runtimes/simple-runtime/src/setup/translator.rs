@@ -98,7 +98,7 @@ impl Translators {
     pub fn get(&mut self, translator: Translator) -> &mut TranslatorType {
         self.0
             .get_mut(&translator)
-            .expect("Upscaler not registered")
+            .expect("Translator not available. Have you set the environment variables?")
     }
     pub async fn new(cuda: bool) -> Self {
         let mut items = HashMap::new();

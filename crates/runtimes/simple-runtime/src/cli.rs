@@ -26,11 +26,11 @@ pub struct Cli {
     #[arg(long)]
     pub overwrite: bool,
 
-    /// uses cuda for translator
-    #[arg(long)]
-    pub cuda: bool,
+    /// maximum batch size for ocr
+    #[arg(long, default_value_t = 16)]
+    pub max_batch_size_ocr: usize,
 
-    /// maximum batch size for cuda
+    /// maximum batch size for upscaler
     #[arg(long, default_value_t = 2)]
-    pub max_batch_size: usize,
+    pub max_batch_size_upscaler: usize,
 }

@@ -10,9 +10,9 @@ pub type OcrType = Box<dyn interface_ocr::Ocr + Send + Sync>;
 pub struct OCRs(HashMap<OCR, OcrType>);
 impl OCRs {
     pub fn get(&mut self, ocr: OCR) -> &mut OcrType {
-        self.0.get_mut(&ocr).expect("Upscaler not registered")
+        self.0.get_mut(&ocr).expect("OCR not registered")
     }
-    pub fn new() -> Self {
+    pub fn new(max_batch_size: usize) -> Self {
         let mut items = HashMap::new();
         let providers = Arc::new(gpu_providers());
         for key in OCR::iter() {
@@ -26,9 +26,16 @@ impl OCRs {
                 // allow:clone
                 OCR::Tesseract => Box::new(tesseract::TesseractOCR::default()) as OcrType,
                 // allow:clone
-                OCR::Ctc48px => Box::new(ctc_48px::Ctc48pxOcr::new(providers.clone())) as OcrType,
+                OCR::Ctc48px => {
+                    Box::new(ctc_48px::Ctc48pxOcr::new(providers.clone(), max_batch_size))
+                        as OcrType
+                }
                 // allow:clone
-                OCR::Ocr48px => Box::new(ocr_48px::Ocr48px::new(providers.clone())) as OcrType,
+                OCR::Ocr48px => Box::new(ocr_48px::Ocr48px::new(
+                    providers.clone(),
+                    256,
+                    max_batch_size,
+                )) as OcrType,
             };
             items.insert(key, ocr);
         }

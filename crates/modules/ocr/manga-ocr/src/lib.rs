@@ -5,7 +5,7 @@ use image::{DynamicImage, GenericImageView, RgbImage};
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
-use interface_ocr::QuadrilateralInfo;
+use interface_ocr::{OcrOptions, QuadrilateralInfo};
 use maplit::hashmap;
 use ndarray::{s, stack, Array4, ArrayView2, Axis};
 use ort::{
@@ -164,6 +164,7 @@ impl interface_ocr::Ocr for MangaOCR {
         &mut self,
         image: &Arc<interface_image::RawImage>,
         areas: &[Arc<Mutex<Quadrilateral>>],
+        options: OcrOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<interface_ocr::QuadrilateralInfo>> {
         let mut texts = vec![];
@@ -179,7 +180,7 @@ impl interface_ocr::Ocr for MangaOCR {
             )
         })
         .await?;
-        for (_, area) in areas.iter().enumerate() {
+        for (i, area) in areas.iter().enumerate() {
             let bbox = area.lock().aabb();
             // allow:clone[arc]
             let grayscale = grayscale.clone();
@@ -189,6 +190,11 @@ impl interface_ocr::Ocr for MangaOCR {
                 Mask::from(view.to_image())
             })
             .await?;
+            if let Some(v) = &options.debug_path {
+                img.clone()
+                    .to_image()?
+                    .save(v.join(format!("patch_{i}_0.png")))?
+            }
 
             // allow:clone[arc]
             texts.push(self.detect_patch(img, area.clone(), img_processor).await?);
@@ -247,7 +253,10 @@ mod tests {
             ))),
         ];
         let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        let mut v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
+        let mut v = mocr
+            .detect(&Arc::new(img), &inp, Default::default(), &ip)
+            .await
+            .unwrap();
         v.sort_by_key(|a| a.text.len());
         assert_eq!(v[0].pos.lock().pts()[0].x, 76);
         assert_eq!(v[0].text, "ふふっ、");

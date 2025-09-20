@@ -8,11 +8,11 @@ use base_util::{
     opencv_utils::to_continous2,
 };
 use interface_detector::textlines::Quadrilateral;
-use interface_image::{ImageOp, RawImage};
+use interface_image::{ImageOp, RawImage, RawImageCow};
 use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
-use interface_ocr::{Ocr, QuadrilateralInfo};
+use interface_ocr::{Ocr, OcrOptions, QuadrilateralInfo};
 use maplit::hashmap;
-use ndarray::{s, Array4};
+use ndarray::{s, Array4, Axis};
 use opencv::core::{MatTraitConst as _, MatTraitConstManual};
 use ort::session::Session;
 use util::{
@@ -22,27 +22,17 @@ use util::{
 pub struct Ocr48px {
     model: Option<((Session, Session, Session), Vec<String>)>,
     providers: Arc<Vec<Providers>>,
+    max_seq_len: i32,
+    max_batch_size: usize,
 }
 
 impl Ocr48px {
-    pub fn new(providers: Arc<Vec<Providers>>) -> Self {
+    pub fn new(providers: Arc<Vec<Providers>>, max_seq_len: i32, max_batch_size: usize) -> Self {
         Self {
             model: None,
             providers,
-        }
-    }
-}
-
-pub struct Config {
-    max_chunk_size: usize,
-    max_seq_len: i32,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            max_chunk_size: 16,
-            max_seq_len: 255,
+            max_batch_size,
+            max_seq_len,
         }
     }
 }
@@ -99,11 +89,11 @@ impl Ocr for Ocr48px {
         &mut self,
         image: &Arc<RawImage>,
         areas: &[Arc<parking_lot::Mutex<Quadrilateral>>],
+        options: OcrOptions,
         _: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<QuadrilateralInfo>> {
         let mut out = vec![];
         let text_height = 48;
-        let config = Config::default();
         let whs = areas
             .iter()
             .map(|v| {
@@ -127,10 +117,11 @@ impl Ocr for Ocr48px {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let (region_imgs, areas): (Vec<_>, Vec<_>) = region_imgs.into_iter().unzip();
-
+        let max_seq_len = self.max_seq_len;
+        let max_batch_size = self.max_batch_size;
         let ((encoder, decoder, color_pred), dict) = self.load()?;
         let dict = &*dict;
-        for indices in perm.chunks(config.max_chunk_size) {
+        for (ii, indices) in perm.chunks(max_batch_size).enumerate() {
             let n = indices.len();
             let img_slice = indices.iter().map(|v| &region_imgs[*v]).collect::<Vec<_>>();
             let widths = img_slice.iter().map(|v| v.cols()).collect::<Vec<_>>();
@@ -155,6 +146,14 @@ impl Ocr for Ocr48px {
                         );
                 }
             }
+            if let Some(v) = &options.debug_path {
+                for (i, img) in region.axis_iter(Axis(0)).enumerate() {
+                    RawImageCow::from(img)
+                        .to_owned()
+                        .to_image()?
+                        .save(v.join(format!("patch_{ii}_{i}.png")))?
+                }
+            }
             let images = region
                 .mapv(|v| (v as f32 - 127.5) / 127.5)
                 .permuted_axes([0, 3, 1, 2]);
@@ -167,7 +166,7 @@ impl Ocr for Ocr48px {
                 1,
                 2,
                 5,
-                config.max_seq_len,
+                max_seq_len,
                 2,
             );
             for (i, pred) in texts.into_iter().enumerate() {
@@ -258,7 +257,7 @@ mod tests {
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = Ocr48px::new(Arc::new(all_providers()));
+        let mut mocr = Ocr48px::new(Arc::new(all_providers()), 255, 16);
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],
@@ -270,7 +269,10 @@ mod tests {
             ))),
         ];
         let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        let mut v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
+        let mut v = mocr
+            .detect(&Arc::new(img), &inp, Default::default(), &ip)
+            .await
+            .unwrap();
         v.sort_by_key(|a| a.text.len());
         assert_eq!(v[0].pos.lock().pts()[0].x, 76);
         assert_eq!(v[0].text, "ふふっ、");

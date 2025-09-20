@@ -6604,6 +6604,7 @@ dependencies = [
  "native",
  "ocr-48px",
  "opencv",
+ "ort",
  "paddle",
  "parking_lot",
  "png 0.10.0",

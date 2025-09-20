@@ -59,6 +59,7 @@ impl Ocr for NativeOCR {
         &mut self,
         image: &Arc<RawImage>,
         areas: &[Arc<Mutex<Quadrilateral>>],
+        options: interface_ocr::OcrOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<interface_ocr::QuadrilateralInfo>> {
         let mut texts = vec![];
@@ -75,7 +76,7 @@ impl Ocr for NativeOCR {
         })
         .await?;
 
-        for area in areas {
+        for (i, area) in areas.into_iter().enumerate() {
             let bbox = area.lock().aabb();
             // allow:clone[arc]
             let grayscale = grayscale.clone();
@@ -85,6 +86,11 @@ impl Ocr for NativeOCR {
                 Mask::from(view.to_image())
             })
             .await?;
+            if let Some(v) = &options.debug_path {
+                img.clone()
+                    .to_image()?
+                    .save(v.join(format!("patch_{i}_0.png")))?
+            }
 
             // allow:clone[arc]
             texts.push(self.detect_patch(img, area.clone(), img_processor).await?);
@@ -143,7 +149,10 @@ mod tests {
             ))),
         ];
         let ip = Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        let v = mocr.detect(&Arc::new(img), &inp, &ip).await.unwrap();
+        let v = mocr
+            .detect(&Arc::new(img), &inp, Default::default(), &ip)
+            .await
+            .unwrap();
         assert_eq!(v[0].text, "そうだなあ・・・");
         assert_eq!(v.len(), 2);
     }
