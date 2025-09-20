@@ -49,17 +49,8 @@ git clone https://github.com/frederik-uni/manga-image-translator-rust --recursiv
 cargo r -p simple-runtime -- -i in -o out
 ```
 
-
-## Dependencies
-- [rustup](https://rustup.rs)
-- openssl/libssl-dev
-- [opencv](https://github.com/twistedfall/opencv-rust/blob/master/INSTALL.md)
-- libfontconfig-dev(linux only)
-- clang libclang-dev(linux only)
-- llvm(macos/windows only)
-
-
 # Deploy
+- (cuda/cudnn)
 - opencv
 - onnxruntime exectuion providers
 - main binary
