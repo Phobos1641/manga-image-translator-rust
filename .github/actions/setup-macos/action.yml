@@ -17,6 +17,8 @@ runs:
       run: |
         brew install llvm opencv tbb
         TBB_ROOT=$(brew --prefix tbb)
+        RUSTFLAGS="-L $TBB_ROOT/lib $RUSTFLAGS"
+        echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
         echo "TBB_ROOT=$TBB_ROOT" >> $GITHUB_ENV
         echo "PATH=$TBB_ROOT/bin:$PATH" >> $GITHUB_ENV
         if [[ "${{ inputs.runs-on }}" == "macos-13" ]]; then
