@@ -9,7 +9,11 @@ Install [cudnn](https://developer.nvidia.com/cudnn-downloads)
 
 ### Preparation Ubuntu/Debian
 ```sh
-sudo apt-get update
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+apt update
+apt install -y cuda-12-9 cudnn9
+
 sudo apt-get install -y pkg-config libssl-dev libopencv-dev clang libclang-dev libfontconfig-dev
 ```
 
@@ -19,7 +23,7 @@ brew install llvm opencv
 # Old macs only
 brew install openssl@3
 # Run this on every terminal session(not actually required for debug builds/only release builds)
-export OPENCV_LINK_LIBS=opencv_core,opencv_imgproc,opencv_calib3d
+export OPENCV_LINK_LIBS=+static=opencv_core,static=opencv_imgproc,static=opencv_calib3d,static=libtegra_hal,tbb,static=ittnotify,framework=OpenCL,z
 ```
 
 ### Preperation Windows
@@ -30,6 +34,7 @@ $env:OPENCV_LINK_LIBS = $libName # opencv_world*.lib. Its the only .lib file in 
 $env:OPENCV_LINK_PATHS = $libPath # the parent folder of the opencv_world*.lib file. maybe "C:\tools\opencv\build\x64\vc16\lib"
 $env:OPENCV_INCLUDE_PATHS = $includePath # most likely "C:\tools\opencv\build\include"
 $env:Path = "C:\tools\opencv\build\x64\vc16\bin;" + $env:Path
+$env:Path = "C:\Program Files\NVIDIA\CUDNN\v9.13\bin\12.9;" + $env:Path
 
 or permanent
 
