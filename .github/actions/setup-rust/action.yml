@@ -9,5 +9,9 @@ runs:
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Install rustfmt
+      shell: bash
+      run: rustup component add rustfmt
+
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
