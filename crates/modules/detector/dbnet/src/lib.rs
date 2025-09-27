@@ -1,17 +1,21 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use base_util::onnx::{new_session, Providers};
 
 use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
 use interface_image::{DimType, ImageOp, Interpolation, Mask, RawImageCow};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use log::debug;
 
 use ndarray::{array, Array2, Array3, Array4, ArrayView4, ArrayViewD, Axis};
 use opencv::core::BORDER_DEFAULT;
-use ort::{session::Session, value::Tensor};
+use ort::{session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
 use util::{
-    det_arrange::{det_rearrange_forward, shoud_rearrange},
+    det_arrange::{det_rearrange_forward, det_unarrange, shoud_rearrange},
     opencv::bilateral_filter,
 };
 
@@ -19,7 +23,7 @@ use maplit::hashmap;
 
 pub struct DbNetDetector {
     providers: Arc<Vec<Providers>>,
-    model: Option<Session>,
+    model: ModelWrap<AsyncSessionPool>,
     /// Different model architecture, but based on dbnet
     convnext: bool,
 }
@@ -29,32 +33,25 @@ impl DbNetDetector {
     pub fn new(providers: Arc<Vec<Providers>>, convnext: bool) -> Self {
         DbNetDetector {
             providers,
-            model: None,
+            model: Default::default(),
             convnext,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for DbNetDetector {
-    type T = Session;
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
-    fn reload(&mut self) -> anyhow::Result<&mut Session> {
-        self.model = Some(new_session(
-            self.download_model("model", "model.onnx")?,
-            &self.providers,
-        )?);
-        Ok(self.model.as_mut().unwrap())
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
+    impl_model_load_helpers!(model, AsyncSessionPool);
+    async fn reload(&self) -> anyhow::Result<ModelRead<Self::T>> {
+        let p = self.download_model("model", "model.onnx").await?;
+        let s = AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &p, 10)?;
+        *self.model.write().await = Some(s);
+        Ok(self.get_model().await.expect("set before"))
     }
 }
 
 impl Model for DbNetDetector {
-    impl_model_load_helpers!("detector", "dbnet");
+    impl_model_helpers!("detector", "dbnet", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, ModelSource> {
         hashmap! {
@@ -64,21 +61,20 @@ impl Model for DbNetDetector {
             }
         }
     }
-
-    fn unload(&mut self) {
-        self.model = None;
-    }
 }
 
-fn det_batch_forward_default<'a, 'b>(
-    session: &'b mut Session,
+async fn det_batch_forward_default<'a, 'b>(
+    session: &'b AsyncSessionPool,
     batch: ArrayView4<'a, u8>,
+    ro: &RunOptions,
 ) -> anyhow::Result<(Array4<f32>, Array4<f32>)> {
     let batch = batch
         .mapv(|x| x as f32 / 127.5 - 1.0)
         .permuted_axes([0, 3, 1, 2]);
     let tensor = Tensor::from_array(batch)?;
-    let outputs = session.run(ort::inputs!["input" => tensor])?;
+    let outputs = session
+        .run_async(ort::inputs!["input" => tensor], ro)
+        .await?;
     let db: ArrayViewD<f32> = outputs["db"].try_extract_array()?;
     let mask: ArrayViewD<f32> = outputs["mask"].try_extract_array()?;
     let db = db.mapv(|x| 1.0 / (1.0 + (-x).exp()));
@@ -88,30 +84,35 @@ fn det_batch_forward_default<'a, 'b>(
     ))
 }
 
+#[async_trait::async_trait]
 impl Detector for DbNetDetector {
-    fn infer(
-        &mut self,
+    async fn infer(
+        &self,
         img: RawImageCow<'_>,
         options: DefaultOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
-        let session = self.load()?;
+        let session = self.load().await?;
+        let session = session.deref();
 
+        let ro = RunOptions::new()?;
         let (db, mask, shape, ratio_w, ratio_h, pad_w, pad_h) =
             match shoud_rearrange(img.view(), options.detect_size as u32) {
                 true => {
-                    let v = |batch: ArrayView4<'_, u8>| -> anyhow::Result<_> {
-                        det_batch_forward_default(session, batch)
-                    };
                     let img_ = img.view();
                     let shape = (img_.height, img_.width);
-                    let (db, mask) = det_rearrange_forward(
+                    let (batch_results, rv) = det_rearrange_forward(
                         img.view(),
                         options.detect_size as u32,
                         4,
-                        v,
                         img_processor,
                     )?;
+                    let mut out = vec![];
+                    for batch in batch_results {
+                        let t = det_batch_forward_default(session, batch.view(), &ro).await?;
+                        out.push(t)
+                    }
+                    let (db, mask) = det_unarrange(out, rv)?;
                     (db, mask, shape, 1.0, 1.0, 0, 0)
                 }
                 false => {
@@ -132,7 +133,7 @@ impl Detector for DbNetDetector {
                     let ratio_w = ratio_h;
                     let shape = (resized.img.height, resized.img.width);
                     let img = resized.img.as_ndarray()?.insert_axis(ndarray::Axis(0));
-                    let (db, mask) = det_batch_forward_default(session, img)?;
+                    let (db, mask) = det_batch_forward_default(session, img, &ro).await?;
                     (
                         db,
                         mask,
@@ -254,19 +255,18 @@ mod tests {
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
     use interface_model::{Model as _, ModelLoad as _};
 
-    #[test]
-    fn load_unload() {
-        let mut data = DbNetDetector::new(Arc::new(all_providers()), false);
-        data.load().expect("failed to load model");
-        data.unload();
+    #[tokio::test]
+    async fn load_unload() {
+        let data = DbNetDetector::new(Arc::new(all_providers()), false);
+        data.load().await.expect("failed to load model");
+        data.unload().await;
     }
 
-    #[test]
-    fn run() {
-        let mut data = DbNetDetector::new(Arc::new(all_providers()), false);
+    #[tokio::test]
+    async fn run() {
+        let data = DbNetDetector::new(Arc::new(all_providers()), false);
         let cpu_image_processor =
             Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        data.load().expect("Failed to load data");
         data.detect(
             &RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
                 .expect("Failed to load image"),
@@ -274,6 +274,7 @@ mod tests {
             DefaultOptions::default(),
             &cpu_image_processor,
         )
+        .await
         .expect("failed to detect");
     }
 }

@@ -14,5 +14,9 @@ base-util.workspace = true
 maplit.workspace = true
 util.workspace = true
 fast_image_resize.workspace = true
+ort-parallel.workspace = true
+async-trait.workspace = true
+
 [dev-dependencies]
 ndarray-npy.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

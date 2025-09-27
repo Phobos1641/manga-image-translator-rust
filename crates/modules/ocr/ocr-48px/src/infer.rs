@@ -8,9 +8,10 @@ use ndarray::{
 use ordered_float::OrderedFloat;
 use ort::{
     inputs,
-    session::{RunOptions, Session, SessionOutputs},
+    session::{RunOptions, SessionOutputs},
     value::{Tensor, Value, ValueTypeMarker},
 };
+use ort_parallel::AsyncSessionPool;
 const DECODER_LAYER_COUNT: u8 = 5;
 
 use crate::hypo::Hypothesis;
@@ -41,7 +42,7 @@ async fn next_token_batch<'b, 'a: 'b, T: ValueTypeMarker>(
     hypos: &mut Vec<Hypothesis>,
     memory: &'b Value,
     memory_mask: &'b Value<T>,
-    decoder: &'a mut Session,
+    decoder: &'a AsyncSessionPool,
     beams_k: i32,
     run_options: &'b RunOptions,
 ) -> SessionOutputs<'b> {
@@ -75,7 +76,7 @@ async fn next_token_batch<'b, 'a: 'b, T: ValueTypeMarker>(
     let l = Tensor::from_array(Array::from_elem((), l_glob as i64)).unwrap();
     let beams_k = Tensor::from_array(Array::from_elem((), beams_k as i32)).unwrap();
     let activation_cache = Tensor::from_array(activation_cache).unwrap();
-    let out = decoder.run_async(inputs!{"memory" => memory, "memory_mask" => memory_mask, "last_toks"=>last_toks, "memory_idxs_tensor"=>memory_idxs_tensor, "activation_cache"=>activation_cache, "offset"=>offset, "L"=>l, "beams_k" => beams_k}, run_options).unwrap().await.unwrap();
+    let out = decoder.run_async(inputs!{"memory" => memory, "memory_mask" => memory_mask, "last_toks"=>last_toks, "memory_idxs_tensor"=>memory_idxs_tensor, "activation_cache"=>activation_cache, "offset"=>offset, "L"=>l, "beams_k" => beams_k}, run_options).await.unwrap();
     let activation_cache: ArrayViewD<f32> = out
         .get("out_activation_cache")
         .unwrap()
@@ -100,9 +101,9 @@ async fn next_token_batch<'b, 'a: 'b, T: ValueTypeMarker>(
 
 //TODO: convert to async
 pub async fn infer(
-    encoder: &mut Session,
-    decoder: &mut Session,
-    color_pred: &mut Session,
+    encoder: &AsyncSessionPool,
+    decoder: &AsyncSessionPool,
+    color_pred: &AsyncSessionPool,
     img: Array4<f32>,
     new_widths: Vec<i32>,
     start_tok: i64,
@@ -120,7 +121,6 @@ pub async fn infer(
             inputs! {"img" => img, "img_widths" => img_widths},
             run_options,
         )
-        .unwrap()
         .await
         .unwrap();
     let memory = out.get("memory").unwrap();
@@ -253,7 +253,6 @@ pub async fn infer(
         let decoded = Tensor::from_array(cur_hypo.output_owned()).unwrap();
         let out = color_pred
             .run_async(inputs![decoded], run_options)
-            .unwrap()
             .await
             .unwrap();
 

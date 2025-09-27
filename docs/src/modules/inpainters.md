@@ -1,0 +1,7 @@
+# Inpainter
+
+| Model      | Paper                                                                               | Train | Source                                                                                                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lama AOT   |                                                                                     |       |                                                                                                                                                                                                                |
+| Lama Large | [arxiv](https://arxiv.org/abs/2109.07161) [arxiv](https://arxiv.org/abs/2203.00867) |       | [GitHub](https://github.com/advimman/lama) [HomePage](https://www.casualganpapers.com/large-masks-fourier-convolutions-inpainting/LaMa-explained.html) [GitHub](https://github.com/DQiaole/ZITS_inpainting.git) |
+| Lama MPE   | [arxiv](https://arxiv.org/abs/2203.00867)                                           |       | [GitHub](https://github.com/DQiaole/ZITS_inpainting.git)

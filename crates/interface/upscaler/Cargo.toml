@@ -7,3 +7,4 @@ edition.workspace = true
 interface-image.workspace = true
 base-util.workspace = true
 anyhow.workspace = true
+async-trait.workspace = true

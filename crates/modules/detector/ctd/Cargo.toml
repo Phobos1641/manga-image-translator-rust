@@ -16,3 +16,8 @@ maplit.workspace = true
 roots.workspace = true
 imageproc.workspace = true
 opencv = { workspace = true, features = ["imgproc"] }
+ort-parallel.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

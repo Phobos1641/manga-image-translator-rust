@@ -67,7 +67,7 @@ fn ndarray_to_gray_image(arr: &ArrayView2<u8>) -> GrayImage {
     GrayImage::from_raw(arr.dim().1 as u32, arr.dim().0 as u32, data).unwrap()
 }
 
-fn gray_image_to_ndarray(img: &GrayImage) -> anyhow::Result<ArrayView2<u8>> {
+fn gray_image_to_ndarray(img: &GrayImage) -> anyhow::Result<ArrayView2<'_, u8>> {
     let (width, height) = img.dimensions();
     let data = img.as_raw();
     Ok(ArrayView2::from_shape(

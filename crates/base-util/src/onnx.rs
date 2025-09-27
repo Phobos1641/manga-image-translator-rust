@@ -40,8 +40,8 @@ pub fn gpu_providers() -> Vec<Providers> {
     ]
 }
 
-pub fn new_session(path: PathBuf, providers: &[Providers]) -> anyhow::Result<Session> {
-    Ok(new_session_(Session::builder()?, providers)?.commit_from_file(path)?)
+pub fn new_session(providers: &[Providers]) -> anyhow::Result<SessionBuilder> {
+    Ok(new_session_(Session::builder()?, providers)?)
 }
 
 pub fn new_session_(

@@ -1,3 +1,5 @@
+use ndarray::Array4;
+
 use crate::{
     DimType, ImageOp, Interpolation, Mask, MaskView, RawImage, RawImageCow, RawImageView,
     RayonImageProcessor,
@@ -518,5 +520,35 @@ impl ImageOp for CpuImageProcessor {
             .zip(mask2.data)
             .for_each(|(a, b)| *a = func(*a, b));
         mask1
+    }
+
+    fn substract_mean_normalize(
+        &self,
+        img_src: &RawImage,
+        mean_vals: &[f32],
+        norm_vals: &[f32],
+    ) -> Array4<f32> {
+        let cols = img_src.width as usize;
+        let rows = img_src.height as usize;
+        let channels = 3;
+
+        let mut buffer = vec![0.0; rows * cols * channels];
+
+        unsafe {
+            for r in 0..rows {
+                for c in 0..cols {
+                    for ch in 0..channels {
+                        let src_idx = r * cols * channels + c * channels + ch; // HWC index
+                        let dst_idx = ch * rows * cols + r * cols + c; // CHW index
+                        let value = img_src.data.get_unchecked(src_idx).to_owned();
+                        let data =
+                            value as f32 * norm_vals[ch] - mean_vals[ch as usize] * norm_vals[ch];
+                        buffer[dst_idx] = data;
+                    }
+                }
+            }
+        }
+
+        Array4::from_shape_vec((1, channels, rows, cols), buffer).unwrap()
     }
 }

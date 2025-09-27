@@ -30,14 +30,14 @@ impl Models {
     ) -> anyhow::Result<Option<Export>> {
         let ip = Arc::new(CpuImageProcessor::default()) as ImageProcessor;
         let (img, alpha) = RawImage::rgba(img);
-        let (img, alpha) = self.run_upscaler(img, alpha, config.upscaler, &ip)?;
+        let (img, alpha) = self.run_upscaler(img, alpha, config.upscaler, &ip).await?;
 
         if let Some(debug_path) = &debug_path {
             save_json(config, &debug_path.join("0_config.json"))?;
             save_img(&img, &debug_path.join("0_input.png"))?;
         }
 
-        let (areas, mask) = self.run_detector(&img, &config.detector, &ip)?;
+        let (areas, mask) = self.run_detector(&img, &config.detector, &ip).await?;
         if let Some(debug_path) = &debug_path {
             save_mask(&mask, &debug_path.join("1_mask_raw.png"))?;
             save_json(&areas, &debug_path.join("1_quadrilateral.json"))?;
@@ -111,8 +111,9 @@ impl Models {
 
         let upscaled_img = Arc::new(upscaled_img);
 
-        let (inpainted, mask) =
-            self.run_inpainter(&upscaled_img, mask, mask_refined, &config.inpainter, &ip)?;
+        let (inpainted, mask) = self
+            .run_inpainter(&upscaled_img, mask, mask_refined, &config.inpainter, &ip)
+            .await?;
 
         let inpainted = inpainted.add_a(mask.data);
         if let Some(debug_path) = &debug_path {

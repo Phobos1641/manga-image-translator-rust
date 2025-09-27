@@ -1,51 +1,58 @@
 use ndarray::{Array, Array4, ArrayD, Axis};
 use ndarray_stats::QuantileExt as _;
-use ort::{inputs, session::Session, value::Tensor};
+use ort::{inputs, session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
+use util::spawn_blocking;
 
-pub fn decode(
-    model: &mut Session,
+pub async fn decode(
+    model: &AsyncSessionPool,
     img: Array4<f32>,
     blank: i64,
-) -> Vec<Vec<(i64, f32, f32, f32, f32, f32, f32, f32)>> {
+) -> anyhow::Result<Vec<Vec<(i64, f32, f32, f32, f32, f32, f32, f32)>>> {
+    let ro = RunOptions::new().unwrap();
     let out = model
-        .run(inputs! {"images"=> Tensor::from_array(img).unwrap()})
+        .run_async(inputs! {"images"=> Tensor::from_array(img).unwrap()}, &ro)
+        .await
         .unwrap();
-    let pred_char_logits = out.get("pred_char_logits").unwrap();
-    let mut pred_chars = (0..pred_char_logits.shape()[0])
-        .map(|_| vec![])
-        .collect::<Vec<_>>();
-    let logprobs = log_softmax(
-        pred_char_logits.try_extract_array().unwrap().to_owned(),
-        Axis(2),
-    );
-    let (_, preds_index) = max_along_axis(&logprobs, Axis(2));
-    let pred_color_values = out
-        .get("pred_color_values")
-        .unwrap()
-        .try_extract_array::<f32>()
-        .unwrap()
-        .mapv(|v| v.clamp(0.0, 1.0));
-    for b in 0..pred_char_logits.shape()[0] as usize {
-        let mut last_ch = blank;
-        for t in 0..pred_char_logits.shape()[1] as usize {
-            let pred_ch: i64 = preds_index[[b, t]];
-            if pred_ch != last_ch && pred_ch != blank {
-                let lp: f32 = logprobs[[b, t, pred_ch as usize]];
-                pred_chars[b as usize].push((
-                    pred_ch,
-                    lp,
-                    pred_color_values[[b, t, 0]],
-                    pred_color_values[[b, t, 1]],
-                    pred_color_values[[b, t, 2]],
-                    pred_color_values[[b, t, 3]],
-                    pred_color_values[[b, t, 4]],
-                    pred_color_values[[b, t, 5]],
-                ));
+    let out = spawn_blocking!(|| {
+        let pred_char_logits = out.get("pred_char_logits").unwrap();
+        let mut pred_chars = (0..pred_char_logits.shape()[0])
+            .map(|_| vec![])
+            .collect::<Vec<_>>();
+        let logprobs = log_softmax(
+            pred_char_logits.try_extract_array().unwrap().to_owned(),
+            Axis(2),
+        );
+        let (_, preds_index) = max_along_axis(&logprobs, Axis(2));
+        let pred_color_values = out
+            .get("pred_color_values")
+            .unwrap()
+            .try_extract_array::<f32>()
+            .unwrap()
+            .mapv(|v| v.clamp(0.0, 1.0));
+        for b in 0..pred_char_logits.shape()[0] as usize {
+            let mut last_ch = blank;
+            for t in 0..pred_char_logits.shape()[1] as usize {
+                let pred_ch: i64 = preds_index[[b, t]];
+                if pred_ch != last_ch && pred_ch != blank {
+                    let lp: f32 = logprobs[[b, t, pred_ch as usize]];
+                    pred_chars[b as usize].push((
+                        pred_ch,
+                        lp,
+                        pred_color_values[[b, t, 0]],
+                        pred_color_values[[b, t, 1]],
+                        pred_color_values[[b, t, 2]],
+                        pred_color_values[[b, t, 3]],
+                        pred_color_values[[b, t, 4]],
+                        pred_color_values[[b, t, 5]],
+                    ));
+                }
+                last_ch = pred_ch;
             }
-            last_ch = pred_ch;
         }
-    }
-    pred_chars
+        pred_chars
+    })?;
+    Ok(out)
 }
 
 fn max_along_axis(arr: &ArrayD<f32>, axis: Axis) -> (ArrayD<f32>, Array<i64, ndarray::IxDyn>) {

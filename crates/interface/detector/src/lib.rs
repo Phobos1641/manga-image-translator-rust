@@ -1,4 +1,3 @@
-mod common;
 pub mod textlines;
 
 use std::sync::Arc;
@@ -6,6 +5,7 @@ use std::sync::Arc;
 use base_util::RawSerializable;
 use interface_image::{ImageOp, Mask, RawImage, RawImageCow};
 use interface_model::Model;
+use log::{debug, info};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -43,30 +43,92 @@ impl PreprocessorOptions {
 //
 //
 
+#[async_trait::async_trait]
 pub trait Detector: Model {
-    fn detect(
-        &mut self,
+    async fn detect(
+        &self,
         image: &RawImage,
         pre_processor_options: PreprocessorOptions,
         options: DefaultOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
-        let v = common::detect(image, &pre_processor_options, img_processor, |img| {
-            self.infer(img, options, img_processor)
-        })?;
-
-        match v {
-            Some(v) => Ok(v),
-            None => self.detect(
-                image,
-                pre_processor_options.set_auto_rotate(false),
-                options,
-                img_processor,
-            ),
+        let img_h = image.height as i64;
+        let pp_opt = pre_processor_options;
+        // Automatically add border if image too small (instead of simply resizing due to them more likely containing large fonts)
+        let mut add_border = None;
+        if image.width.min(image.height) < 400 {
+            add_border = Some((image.width, image.height));
+            debug!("Adding border")
         }
+        let mut img = img_processor.add_border(image.view(), 400);
+        if pp_opt.rotate {
+            debug!("Rotating image");
+            img = RawImageCow::Owned(img_processor.rotate_right(img.view()));
+        }
+
+        if pp_opt.invert {
+            debug!("Adding inversion");
+            img = RawImageCow::Owned(img_processor.invert(img.to_owned()));
+        }
+
+        if pp_opt.gamma_correct {
+            debug!("Adding gamma correction");
+            img = RawImageCow::Owned(img_processor.gamma_correction(img.view()));
+        }
+
+        let (mut textlines, mut mask) = self.infer(img, options, img_processor).await?;
+
+        if pp_opt.auto_rotate {
+            let rerun = if !textlines.is_empty() {
+                textlines.len() * 2 >= textlines.iter().map(|v| v.aspect_ratio() > 1.0).count()
+            } else {
+                true
+            };
+
+            if rerun {
+                info!("Rerunning detection with 90° rotation");
+                return self
+                    .detect(
+                        image,
+                        pre_processor_options.set_auto_rotate(false),
+                        options,
+                        img_processor,
+                    )
+                    .await;
+            }
+        }
+
+        if let Some((w, h)) = add_border {
+            debug!("Removing border from mask");
+
+            mask = img_processor.remove_border_mask(mask, w, h);
+        }
+
+        if pp_opt.rotate {
+            debug!("Rotating mask and textlines");
+            mask = img_processor.rotate_left_mask(mask);
+            textlines = textlines
+                .into_iter()
+                .map(|v| {
+                    Quadrilateral::new(
+                        v.pts()
+                            .iter()
+                            .map(|&point| {
+                                let new_x = point.y;
+                                let new_y = -point.x + img_h;
+                                (new_x, new_y)
+                            })
+                            .collect(),
+                        v.score(),
+                    )
+                })
+                .collect::<Vec<_>>();
+        }
+
+        Ok((textlines, mask))
     }
-    fn infer(
-        &mut self,
+    async fn infer(
+        &self,
         img: RawImageCow<'_>,
         options: DefaultOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,

@@ -32,10 +32,10 @@ base-util = { workspace = true, features = ["onnx", "opencv"] }
 image.workspace = true
 parking_lot.workspace = true
 async-scoped = { workspace = true, features = ["use-tokio"] }
-
 [dev-dependencies]
 criterion = "0.6.0"
 once_cell = "1.21.3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [[bench]]
 name = "imageproc_bench"

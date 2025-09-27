@@ -8,10 +8,8 @@ pub type InpainterType = Box<dyn interface_inpainter::Inpainter + Send + Sync>;
 
 pub struct Inpainters(HashMap<Inpainter, InpainterType>);
 impl Inpainters {
-    pub fn get(&mut self, inpainter: Inpainter) -> &mut InpainterType {
-        self.0
-            .get_mut(&inpainter)
-            .expect("Inpainter not registered")
+    pub fn get(&self, inpainter: Inpainter) -> &InpainterType {
+        self.0.get(&inpainter).expect("Inpainter not registered")
     }
     pub fn new() -> Self {
         let mut items = HashMap::new();

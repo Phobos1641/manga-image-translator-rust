@@ -3,14 +3,18 @@ use std::{fmt::Display, sync::Arc};
 use base_util::onnx::{new_session, Providers};
 use half::f16;
 use interface_image::RawImage;
-use interface_model::{impl_model_load_helpers, Model, ModelLoad};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelWrap,
+};
 use interface_upscaler::Upscaler;
 use maplit::hashmap;
 use ndarray::{ArrayView3, ArrayViewD, Axis};
-use ort::{inputs, session::Session, value::Tensor};
+use ort::{inputs, session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
+use util::spawn_blocking;
 
 pub struct Anime4KUpscaler {
-    model: Option<Session>,
+    model: ModelWrap<AsyncSessionPool>,
     model_kind: Anime4KModel,
     providers: Arc<Vec<Providers>>,
 }
@@ -18,7 +22,7 @@ pub struct Anime4KUpscaler {
 impl Anime4KUpscaler {
     pub fn new(model_kind: Anime4KModel, providers: Arc<Vec<Providers>>) -> Self {
         Anime4KUpscaler {
-            model: None,
+            model: Default::default(),
             model_kind,
             providers,
         }
@@ -47,27 +51,23 @@ impl Display for Anime4KModel {
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for Anime4KUpscaler {
-    type T = Session;
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
+    impl_model_load_helpers!(model, AsyncSessionPool);
 
-    fn reload(&mut self) -> anyhow::Result<&mut Session> {
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
         let model = self.model_kind.to_string();
-        let path = self.download_model(&model, &format!("{model}.onnx"))?;
-        let session = new_session(path, &self.providers)?;
-        self.model = Some(session);
-        Ok(self.model.as_mut().expect("Set model before"))
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
+        let path = self
+            .download_model(&model, &format!("{model}.onnx"))
+            .await?;
+        let session = AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &path, 10)?;
+        *self.model.write().await = Some(session);
+        Ok(self.get_model().await.expect("loaded before"))
     }
 }
 
 impl Model for Anime4KUpscaler {
-    impl_model_load_helpers!("upscaler", "waifu2x");
+    impl_model_helpers!("upscaler", "waifu2x", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
@@ -79,35 +79,39 @@ impl Model for Anime4KUpscaler {
             "4x_UUL" =>interface_model::ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/anime4k/4x_UUL", hash: "###" }
         }
     }
-
-    fn unload(&mut self) {
-        self.model = None;
-    }
 }
 
+#[async_trait::async_trait]
 impl Upscaler for Anime4KUpscaler {
-    fn upscale(
-        &mut self,
+    async fn upscale(
+        &self,
         image: &RawImage,
         _: Option<usize>,
         _: usize,
         _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
     ) -> anyhow::Result<RawImage> {
-        let image = image
-            .as_ndarray()
-            .unwrap()
-            .mapv(|v| f16::from_f32(v as f32 / 255.0))
-            .permuted_axes((2, 0, 1))
-            .insert_axis(Axis(0));
-        let t = Tensor::from_array(image).unwrap();
-        let model = self.load()?;
-        let out = model.run(inputs! {"input"=>t}).unwrap();
-        let out: ArrayViewD<f16> = out[0].try_extract_array().unwrap().remove_axis(Axis(0));
-        let out: ArrayView3<f16> = out.into_dimensionality().unwrap();
-        let out = out
-            .mapv(|v| (v.to_f32() * 255.0) as u8)
-            .permuted_axes((1, 2, 0));
-        let out = RawImage::from(out);
+        let t = spawn_blocking!(|| {
+            let image = image
+                .as_ndarray()?
+                .mapv(|v| f16::from_f32(v as f32 / 255.0))
+                .permuted_axes((2, 0, 1))
+                .insert_axis(Axis(0));
+            let t = Tensor::from_array(image)?;
+            Ok::<_, anyhow::Error>(t)
+        })??;
+
+        let model = self.load().await?;
+        let settings = RunOptions::new()?;
+        let out = model.run_async(inputs! {"input"=>t}, &settings).await?;
+        let out = spawn_blocking!(|| {
+            let out: ArrayViewD<f16> = out[0].try_extract_array()?.remove_axis(Axis(0));
+            let out: ArrayView3<f16> = out.into_dimensionality()?;
+            let out = out
+                .mapv(|v| (v.to_f32() * 255.0) as u8)
+                .permuted_axes((1, 2, 0));
+            Ok::<_, anyhow::Error>(RawImage::from(out))
+        })??;
+
         Ok(out)
     }
 }

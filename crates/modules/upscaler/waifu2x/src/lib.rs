@@ -1,17 +1,22 @@
-use std::{fmt::Display, sync::Arc};
+use std::{fmt::Display, ops::Deref, sync::Arc};
 
 use base_util::onnx::{new_session, Providers};
 use interface_image::{
     combine_patches_m, generate_patches, DimType, ImageOp, RawImage, RawImageCow,
 };
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use interface_upscaler::Upscaler;
 use maplit::hashmap;
 use ndarray::{stack, Array3, Array4, ArrayView, ArrayView4, ArrayViewD, Axis, Dimension};
-use ort::{inputs, session::Session, value::Tensor};
+use ort::{inputs, session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
+use util::spawn_blocking;
 
 pub struct Waifu2xUpscaler {
-    model: Option<Session>,
+    model: ModelWrap<AsyncSessionPool>,
     model_kind: Waifu2xModels,
     max_batch_size: usize,
     providers: Arc<Vec<Providers>>,
@@ -90,7 +95,7 @@ impl Waifu2xUpscaler {
         providers: Arc<Vec<Providers>>,
     ) -> Self {
         Self {
-            model: None,
+            model: Default::default(),
             model_kind: model,
             max_batch_size,
             providers,
@@ -98,27 +103,23 @@ impl Waifu2xUpscaler {
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for Waifu2xUpscaler {
-    type T = Session;
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
+    impl_model_load_helpers!(model, AsyncSessionPool);
 
-    fn reload(&mut self) -> anyhow::Result<&mut Session> {
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
         let model = self.model_kind.to_string();
-        let path = self.download_model(&model, &format!("{model}.onnx"))?;
-        let session = new_session(path, &self.providers)?;
-        self.model = Some(session);
-        Ok(self.model.as_mut().expect("Set model before"))
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
+        let path = self
+            .download_model(&model, &format!("{model}.onnx"))
+            .await?;
+        let session = AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &path, 10)?;
+        *self.model.write().await = Some(session);
+        Ok(self.get_model().await.expect("Set model before"))
     }
 }
 
 impl Model for Waifu2xUpscaler {
-    impl_model_load_helpers!("upscaler", "waifu2x");
+    impl_model_helpers!("upscaler", "waifu2x", model);
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
             "cunet-art-2x-noise0" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/waifu2x-20250502/cunet-art-2x-noise0.onnx", hash: "###" },
@@ -158,10 +159,6 @@ impl Model for Waifu2xUpscaler {
             "swin_unet-photo-4x" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/waifu2x-20250502/swin_unet-photo-4x.onnx", hash: "###" },
         }
     }
-
-    fn unload(&mut self) {
-        self.model = None;
-    }
 }
 
 #[cfg(test)]
@@ -174,9 +171,9 @@ mod tests {
 
     use crate::{Waifu2xModels, Waifu2xUpscaler};
 
-    #[test]
-    fn test_upscaler() {
-        let mut upscaler = Waifu2xUpscaler::new(
+    #[tokio::test]
+    async fn test_upscaler() {
+        let upscaler = Waifu2xUpscaler::new(
             Waifu2xModels::CuNetArt { noise: Some(3) },
             5,
             Arc::new(all_providers()),
@@ -194,6 +191,7 @@ mod tests {
                 0,
                 &(img_processor as Arc<dyn ImageOp + Send + Sync>),
             )
+            .await
             .expect("Failed to upscale image");
 
         assert_eq!(upscaled.width, w * upscaler.model_kind.scale() as DimType);
@@ -201,9 +199,9 @@ mod tests {
         upscaled.to_image().unwrap().save("upscaled.png").unwrap();
     }
 
-    #[test]
-    fn test_upscaler_patches() {
-        let mut upscaler = Waifu2xUpscaler::new(
+    #[tokio::test]
+    async fn test_upscaler_patches() {
+        let upscaler = Waifu2xUpscaler::new(
             Waifu2xModels::CuNetArt { noise: Some(3) },
             5,
             Arc::new(all_providers()),
@@ -221,6 +219,7 @@ mod tests {
                 0,
                 &(img_processor as Arc<dyn ImageOp + Send + Sync>),
             )
+            .await
             .expect("Failed to upscale image");
         assert_eq!(upscaled.width, w * upscaler.model_kind.scale() as DimType);
         assert_eq!(upscaled.height, w * upscaler.model_kind.scale() as DimType);
@@ -291,24 +290,32 @@ fn pre_process(
     )?)
 }
 
-fn process(model: &mut Session, batches: Vec<Array4<f32>>) -> anyhow::Result<Vec<Array3<u8>>> {
+async fn process(
+    model: &AsyncSessionPool,
+    batches: Vec<Array4<f32>>,
+) -> anyhow::Result<Vec<Array3<u8>>> {
     let mut processed_patches = vec![];
+    let opt = RunOptions::new()?;
     for batch in batches {
-        let t = Tensor::from_array(batch)?;
-        let out = model.run(inputs! {"x"=>t})?;
-        let img: ArrayViewD<f32> = out[0].try_extract_array()?;
-        let img: ArrayView4<f32> = img.into_dimensionality()?;
-        for img in img.outer_iter() {
-            let img = img.permuted_axes((1, 2, 0)).mapv(|v| (v * 255.0) as u8);
-            processed_patches.push(img);
-        }
+        let t = spawn_blocking!(|| Tensor::from_array(batch))??;
+        let out = model.run_async(inputs! {"x"=>t}, &opt).await?;
+        spawn_blocking!(|| {
+            let img: ArrayViewD<f32> = out[0].try_extract_array()?;
+            let img: ArrayView4<f32> = img.into_dimensionality()?;
+            for img in img.outer_iter() {
+                let img = img.permuted_axes((1, 2, 0)).mapv(|v| (v * 255.0) as u8);
+                processed_patches.push(img);
+            }
+            Ok::<_, anyhow::Error>(())
+        })??;
     }
     Ok(processed_patches)
 }
 
+#[async_trait::async_trait]
 impl Upscaler for Waifu2xUpscaler {
-    fn upscale(
-        &mut self,
+    async fn upscale(
+        &self,
         image: &RawImage,
         patch_size: Option<usize>,
         padding: usize,
@@ -318,27 +325,37 @@ impl Upscaler for Waifu2xUpscaler {
         let w = image.width;
         let h = image.height;
 
-        let model = self.load()?;
-        let batches = pre_process(image, patch_size, padding, max_batch_size, img_processor)?;
-        let mut patches = process(model, batches)?
+        let model = self.load().await?;
+        let model = model.deref();
+        let batches = spawn_blocking!(|| pre_process(
+            image,
+            patch_size,
+            padding,
+            max_batch_size,
+            img_processor
+        ))??;
+        let mut patches = process(model, batches)
+            .await?
             .into_iter()
             .map(RawImage::from)
             .collect::<Vec<_>>();
-        let ps = patches[0].width;
-        let out = match patch_size {
-            Some(_) => combine_patches_m(
-                patches,
-                w * self.model_kind.scale() as DimType,
-                h * self.model_kind.scale() as DimType,
-                ps as usize,
-                padding * self.model_kind.scale(),
-            ),
-            None => img_processor.remove_border(
-                patches.remove(0).view(),
-                w * self.model_kind.scale() as DimType,
-                h * self.model_kind.scale() as DimType,
-            ),
-        };
+        let out = spawn_blocking!(|| {
+            let ps = patches[0].width;
+            match patch_size {
+                Some(_) => combine_patches_m(
+                    patches,
+                    w * self.model_kind.scale() as DimType,
+                    h * self.model_kind.scale() as DimType,
+                    ps as usize,
+                    padding * self.model_kind.scale(),
+                ),
+                None => img_processor.remove_border(
+                    patches.remove(0).view(),
+                    w * self.model_kind.scale() as DimType,
+                    h * self.model_kind.scale() as DimType,
+                ),
+            }
+        })?;
 
         Ok(out)
     }

@@ -8,8 +8,8 @@ pub type DetectorType = Box<dyn interface_detector::Detector + Send + Sync>;
 
 pub struct Detectors(HashMap<Detector, DetectorType>);
 impl Detectors {
-    pub fn get(&mut self, detector: Detector) -> &mut DetectorType {
-        self.0.get_mut(&detector).expect("Detector not registered")
+    pub fn get(&self, detector: Detector) -> &DetectorType {
+        self.0.get(&detector).expect("Detector not registered")
     }
     pub fn new() -> Self {
         let mut items = HashMap::new();

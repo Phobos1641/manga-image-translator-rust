@@ -12,3 +12,9 @@ ort.workspace = true
 ndarray.workspace = true
 base-util.workspace = true
 anyhow.workspace = true
+ort-parallel.workspace = true
+async-trait.workspace = true
+util.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

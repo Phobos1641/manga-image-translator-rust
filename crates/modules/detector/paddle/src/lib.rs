@@ -1,8 +1,7 @@
 use std::{f32, sync::Arc};
 
-use anyhow::bail;
 use base_util::{
-    onnx::{all_providers, new_session_, Providers},
+    onnx::{new_session, Providers},
     RawSerializable,
 };
 use geo::{MinimumRotatedRect, Point};
@@ -11,14 +10,21 @@ use interface_detector::{
     textlines::{MyPoint, Quadrilateral},
     DefaultOptions, Detector,
 };
-use interface_image::{ImageOp, Mask, RawImageCow};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_image::{ImageOp, Interpolation, Mask, RawImageCow};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use maplit::hashmap;
-use ort::session::builder::SessionBuilder;
-use paddle_ocr_rs::{base_net::BaseNet, db_net::DbNet, scale_param::ScaleParam};
+use ort::{inputs, session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
+use paddle_ocr_rs::{
+    db_net::{DbNet, MEAN_VALUES, NORM_VALUES},
+    scale_param::ScaleParam,
+};
 
 pub struct PaddleDetector {
-    db_net: Option<DbNet>,
+    db_net: ModelWrap<AsyncSessionPool>,
     providers: Arc<Vec<Providers>>,
 }
 
@@ -27,55 +33,32 @@ impl PaddleDetector {
     pub fn new(providers: Arc<Vec<Providers>>) -> Self {
         PaddleDetector {
             providers,
-            db_net: None,
+            db_net: Default::default(),
         }
     }
 }
 
-fn ses_builder(v: SessionBuilder) -> Result<SessionBuilder, ort::Error> {
-    //TODO: dont start with all providers
-    new_session_(v, &all_providers())
-}
+#[async_trait::async_trait]
 impl ModelLoad for PaddleDetector {
-    type T = DbNet;
-    fn loaded(&self) -> bool {
-        self.db_net.is_some()
-    }
-    fn reload(&mut self) -> anyhow::Result<&mut DbNet> {
-        let mut db_net = DbNet::new();
+    impl_model_load_helpers!(db_net, AsyncSessionPool);
 
-        let model = self
-            .download_model("det", "det.onnx")?
-            .to_string_lossy()
-            .to_string();
-        let err = db_net.init_model(&model, 0, Some(|v| ses_builder(v)));
-        if let Err(e) = err {
-            match e {
-                paddle_ocr_rs::ocr_error::OcrError::Ort(error) => {
-                    bail!("failed to create session {:?}", error)
-                }
-                _ => unreachable!(),
-            }
-        }
-        self.db_net = Some(db_net);
-        Ok(self.db_net.as_mut().unwrap())
-    }
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
+        let model = self.download_model("det", "det.onnx").await?;
+        let b = new_session(&self.providers)?;
+        let p = AsyncSessionPool::commit_from_file(b, &model, 10)?;
 
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.db_net.as_mut()
+        *self.db_net.write().await = Some(p);
+        Ok(self.get_model().await.expect("set before"))
     }
 }
+
 impl Model for PaddleDetector {
-    impl_model_load_helpers!("detector", "paddle");
+    impl_model_helpers!("detector", "paddle", db_net);
 
     fn models(&self) -> std::collections::HashMap<&'static str, ModelSource> {
         hashmap! {
             "det" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/paddle-ocr-chinese-v4/det.onnx", hash: "b21a993484b367c0ea29d4a703c038d6ee3212173e6abf962b09188b032a9483" },
         }
-    }
-
-    fn unload(&mut self) {
-        self.db_net = None;
     }
 }
 
@@ -117,14 +100,15 @@ impl Default for PaddleOptions {
     }
 }
 
+#[async_trait::async_trait]
 impl Detector for PaddleDetector {
-    fn infer(
-        &mut self,
+    async fn infer(
+        &self,
         img: RawImageCow<'_>,
         options: DefaultOptions,
-        _: &Arc<dyn ImageOp + Send + Sync>,
+        image_op: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
-        let db_net = self.load()?;
+        let session = self.load().await?;
         let img = img.view();
 
         let max_side_len = 960;
@@ -139,20 +123,45 @@ impl Detector for PaddleDetector {
 
         // let padding_src = OcrUtils::make_padding(img_src, padding).unwrap();
         let (w, h) = (img.width, img.height);
+        let scale = ScaleParam::get_scale_param_size(w as u32, h as u32, resize as u32);
+        let src_resize = image_op.resize(
+            img,
+            scale.dst_width as u16,
+            scale.dst_height as u16,
+            Interpolation::Bilinear,
+        )?;
 
-        let img = img.to_image().unwrap().to_rgb8();
+        let op = RunOptions::new()?;
 
-        let scale = ScaleParam::get_scale_param(&img, resize as u32);
+        let input_tensors = image_op.substract_mean_normalize(
+            &src_resize,
+            MEAN_VALUES.as_slice(),
+            NORM_VALUES.as_slice(),
+        );
 
-        let text_boxes = db_net
-            .get_text_boxes(
-                &img,
-                &scale,
-                options.text_threshold as f32,
-                options.box_threshold as f32,
-                options.unclip_ratio as f32,
-            )
-            .unwrap();
+        let tensor = Tensor::from_array(input_tensors)?;
+
+        let outputs = session
+            .run_async(inputs![session.inputs[0].name.clone() => tensor], &op)
+            .await?;
+
+        let text_boxes = DbNet::get_text_boxes_core(
+            &outputs,
+            src_resize.height as u32,
+            src_resize.width as u32,
+            &ScaleParam::new(
+                scale.src_width,
+                scale.src_height,
+                scale.dst_width,
+                scale.dst_height,
+                scale.scale_width,
+                scale.scale_height,
+            ),
+            options.text_threshold as f32,
+            options.box_threshold as f32,
+            options.unclip_ratio as f32,
+        )?;
+
         let boxes = text_boxes
             .into_iter()
             .filter(|v| v.score != f32::INFINITY)
@@ -262,19 +271,19 @@ mod tests {
     use interface_image::{CpuImageProcessor, ImageOp, RawImage};
     use interface_model::{Model as _, ModelLoad};
 
-    #[test]
-    fn load_unload() {
-        let mut data = PaddleDetector::new(Arc::new(all_providers()));
-        data.load().expect("failed to load model");
-        data.unload();
+    #[tokio::test]
+    async fn load_unload() {
+        let data = PaddleDetector::new(Arc::new(all_providers()));
+        data.load().await.expect("failed to load model");
+        data.unload().await;
     }
 
-    #[test]
-    fn run() {
-        let mut data = PaddleDetector::new(Arc::new(all_providers()));
+    #[tokio::test]
+    async fn run() {
+        let data = PaddleDetector::new(Arc::new(all_providers()));
         let cpu_image_processor =
             Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        data.load().expect("Failed to load data");
+        data.load().await.expect("Failed to load data");
         data.detect(
             &RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
                 .expect("Failed to load image"),
@@ -282,6 +291,7 @@ mod tests {
             DefaultOptions::default(),
             &cpu_image_processor,
         )
+        .await
         .expect("failed to detect");
     }
 }

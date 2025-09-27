@@ -23,28 +23,28 @@ fn criterion_benchmark(c: &mut Criterion) {
     //     })
     // });
 
-    c.bench_function("infer", |b| {
-        data.load().expect("Failed to load model");
-        b.iter(|| {
-            data.infer(
-                interface_image::RawImageCow::Borrowed(img.view()),
-                DefaultOptions::default(),
-                &cpu_image_processor,
-            )
-        })
-    });
+    // c.bench_function("infer", |b| {
+    //     data.load().expect("Failed to load model");
+    //     b.iter(|| {
+    //         data.infer(
+    //             interface_image::RawImageCow::Borrowed(img.view()),
+    //             DefaultOptions::default(),
+    //             &cpu_image_processor,
+    //         )
+    //     })
+    // });
 
-    c.bench_function("detection", |b| {
-        data.load().expect("Failed to load model");
-        b.iter(|| {
-            data.detect(
-                &img,
-                PreprocessorOptions::default(),
-                DefaultOptions::default(),
-                &cpu_image_processor,
-            )
-        })
-    });
+    // c.bench_function("detection", |b| {
+    //     data.load().expect("Failed to load model");
+    //     b.iter(|| {
+    //         data.detect(
+    //             &img,
+    //             PreprocessorOptions::default(),
+    //             DefaultOptions::default(),
+    //             &cpu_image_processor,
+    //         )
+    //     })
+    // });
 }
 
 criterion_group!(benches, criterion_benchmark);

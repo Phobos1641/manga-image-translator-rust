@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use fast_image_resize::{images::Image, ResizeAlg, ResizeOptions, SrcCropping};
-use interface_image::{ImageOp, Mask, MaskView};
+use interface_image::{ImageOp, MaskView};
 use ndarray::{stack, Array2, Array3, Axis, Zip};
 use util::{
     nd::to_raw,

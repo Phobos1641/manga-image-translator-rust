@@ -1,24 +1,28 @@
 mod refine_mask;
 
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::anyhow;
 use base_util::onnx::{new_session, Providers};
 
 use interface_detector::{textlines::Quadrilateral, DefaultOptions, Detector};
 use interface_image::{ImageOp, Interpolation, Mask, RawImageCow, RawImageView};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use maplit::hashmap;
 use ndarray::{s, stack, Array2, Array4, ArrayView4, ArrayViewD, Axis};
-use ort::{session::Session, value::Tensor};
+use ort::{session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
 use util::{
     dbnet::SegDetectorRepresenter,
-    det_arrange::{det_rearrange_forward, shoud_rearrange},
+    det_arrange::{det_rearrange_forward, det_unarrange, shoud_rearrange},
 };
 
 pub struct CtdDetector {
     providers: Arc<Vec<Providers>>,
-    model: Option<Session>,
+    model: ModelWrap<AsyncSessionPool>,
 }
 
 impl CtdDetector {
@@ -26,67 +30,64 @@ impl CtdDetector {
     pub fn new(providers: Arc<Vec<Providers>>) -> Self {
         CtdDetector {
             providers,
-            model: None,
+            model: Default::default(),
         }
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for CtdDetector {
-    type T = Session;
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
+    impl_model_load_helpers!(model, AsyncSessionPool);
 
-    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
-        self.model = Some(new_session(
-            self.download_model("model", "model.onnx")?,
-            &self.providers,
-        )?);
-        Ok(self.model.as_mut().expect("Model was set before"))
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
+        let p = self.download_model("model", "model.onnx").await?;
+        let b = new_session(&self.providers)?;
+        let p = AsyncSessionPool::commit_from_file(b, &p, 10)?;
+        *self.model.write().await = Some(p);
+        Ok(self.get_model().await.expect("Model was set before"))
     }
 }
 
 impl Model for CtdDetector {
-    impl_model_load_helpers!("detector", "ctd");
+    impl_model_helpers!("detector", "ctd", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, ModelSource> {
         hashmap! {
             "model" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ctd-v1.0.0/model.onnx", hash: "c921d44fea30913a1689dcb4d28faef664dfd0c9f895146d27342e52b823ec0c" }
         }
     }
-    fn unload(&mut self) {
-        self.model = None;
-    }
 }
 
+#[async_trait::async_trait]
 impl Detector for CtdDetector {
-    fn infer(
-        &mut self,
+    async fn infer(
+        &self,
         img: RawImageCow<'_>,
         _: DefaultOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<(Vec<Quadrilateral>, Mask)> {
         let img_ = img.view();
         let (im_w, im_h) = (img_.width, img_.height);
-        let session = self.load()?;
+        let session = self.load().await?;
+        let session = session.deref();
+        let opt = RunOptions::new()?;
         let (lines_map, mask) = match shoud_rearrange(img_, 1024) {
             true => {
-                let v = |batch: ArrayView4<'_, u8>| -> anyhow::Result<_> {
-                    det_batch_forward_ctd(session, batch)
-                };
-                let (lines_map, mask) =
-                    det_rearrange_forward(img.view(), 1024, 4, v, img_processor)?;
+                let (batch_list, rv) = det_rearrange_forward(img.view(), 1024, 4, img_processor)?;
+                let mut out = vec![];
+                for batch in batch_list {
+                    out.push(det_batch_forward_ctd(session, &opt, batch.view()).await?);
+                }
+                let (lines_map, mask) = det_unarrange(out, rv)?;
                 (lines_map, mask)
             }
             false => {
                 let (img_in, _, dw, dh) =
                     preprocess_img(img.view(), img_processor, (1024, 1024), true, false)?;
                 let tensor = Tensor::from_array(img_in)?;
-                let outputs = session.run(ort::inputs!["input" => tensor])?;
+                let outputs = session
+                    .run_async(ort::inputs!["input" => tensor], &opt)
+                    .await?;
 
                 let mask: ArrayViewD<f32> = outputs["mask"].try_extract_array()?;
                 let lines_map: ArrayViewD<f32> = outputs["lines"].try_extract_array()?;
@@ -113,7 +114,7 @@ impl Detector for CtdDetector {
             .index_axis(ndarray::Axis(0), 0)
             .to_owned();
 
-        let mut mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
+        let mask = Mask::from(mask.mapv(|v| f32::clamp(v * 255.0, 0.0, 255.0) as u8));
         let (lines, scores) =
             SegDetectorRepresenter::default().call(lines_map, false, im_w as u16, im_h as u16)?;
         let box_thresh = 0.6;
@@ -153,13 +154,16 @@ impl Detector for CtdDetector {
         Ok((qu, mask_refined))
     }
 }
-fn det_batch_forward_ctd<'a, 'b>(
-    session: &'b mut Session,
+async fn det_batch_forward_ctd<'a, 'b>(
+    session: &'b AsyncSessionPool,
+    run_options: &RunOptions,
     batch: ArrayView4<'a, u8>,
 ) -> anyhow::Result<(Array4<f32>, Array4<f32>)> {
     let batch = batch.mapv(|v| v as f32 / 255.).permuted_axes([0, 3, 1, 2]);
     let tensor = Tensor::from_array(batch)?;
-    let outputs = session.run(ort::inputs!["input" => tensor])?;
+    let outputs = session
+        .run_async(ort::inputs!["input" => tensor], run_options)
+        .await?;
 
     let mask: ArrayViewD<f32> = outputs["mask"].try_extract_array()?;
     let lines: ArrayViewD<f32> = outputs["lines"].try_extract_array()?;
@@ -255,19 +259,19 @@ mod tests {
 
     use crate::CtdDetector;
 
-    #[test]
-    fn load_unload() {
-        let mut data = CtdDetector::new(Arc::new(all_providers()));
-        data.load().expect("failed to load model");
-        data.unload();
+    #[tokio::test]
+    async fn load_unload() {
+        let data = CtdDetector::new(Arc::new(all_providers()));
+        data.load().await.expect("failed to load model");
+        data.unload().await;
     }
 
-    #[test]
-    fn run() {
-        let mut data = CtdDetector::new(Arc::new(all_providers()));
+    #[tokio::test]
+    async fn run() {
+        let data = CtdDetector::new(Arc::new(all_providers()));
         let cpu_image_processor =
             Arc::new(CpuImageProcessor::default()) as Arc<dyn ImageOp + Send + Sync>;
-        data.load().expect("Failed to load data");
+        data.load().await.expect("Failed to load data");
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
         let (v, _) = data
@@ -277,6 +281,7 @@ mod tests {
                 Default::default(),
                 &cpu_image_processor,
             )
+            .await
             .expect("failed to detect");
         println!("{:?}", v);
     }

@@ -17,11 +17,12 @@ impl Default for InpainterOptions {
     }
 }
 
+#[async_trait::async_trait]
 pub trait Inpainter: Model {
     /// Will inpaint into image. This will change the whole image. A cutout of the image still needs to happen afterwards
-    fn inpaint(
-        &mut self,
-        image: &Arc<RawImage>,
+    async fn inpaint(
+        &self,
+        image: &RawImage,
         mask: Mask,
         options: InpainterOptions,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,

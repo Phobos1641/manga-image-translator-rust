@@ -16,6 +16,7 @@ use crate::{
     update::{check_crate_version, check_cuda},
 };
 
+mod cache;
 pub mod cli;
 mod debug;
 mod dict;

@@ -1,3 +1,5 @@
+use ndarray::Array4;
+
 use crate::{DimType, ImageOp, Mask, MaskView, RawImage, RawImageCow, RawImageView};
 
 #[derive(Default)]
@@ -173,5 +175,19 @@ impl ImageOp for DummyImageProcessor {
 
     fn mask_func(&self, mask1: Mask, _: Mask, _: fn(u8, u8) -> u8) -> Mask {
         mask1
+    }
+
+    fn substract_mean_normalize(
+        &self,
+        img_src: &RawImage,
+        _: &[f32],
+        _: &[f32],
+    ) -> ndarray::Array4<f32> {
+        Array4::zeros((
+            1,
+            img_src.channels as usize,
+            img_src.height as usize,
+            img_src.width as usize,
+        ))
     }
 }

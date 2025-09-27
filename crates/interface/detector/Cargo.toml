@@ -13,6 +13,7 @@ interface-model.workspace = true
 serde = { workspace = true, features = ["derive"] }
 image.workspace = true
 schemars.workspace = true
+async-trait.workspace = true
 
 [dev-dependencies]
 approx.workspace = true

@@ -29,12 +29,13 @@ fn bench_find_contours_from_ndarray(c: &mut Criterion) {
             Some(ndarray_npy::read_npy("npys/mask.npy").expect("couldnt load npy"));
     }
 
-    c.bench_function("det_rearrange_forward", |b| {
-        b.iter(|| {
-            det_rearrange_forward(img.view(), 2048, 4, mocking, &cpu)
-                .expect("failed to run det_rearrange_forward");
-        });
-    });
+    //TODO: fix
+    // c.bench_function("det_rearrange_forward", |b| {
+    //     b.iter(|| {
+    //         det_rearrange_forward(img.view(), 2048, 4, mocking, &cpu)
+    //             .expect("failed to run det_rearrange_forward");
+    //     });
+    // });
 }
 
 criterion_group!(benches, bench_find_contours_from_ndarray);

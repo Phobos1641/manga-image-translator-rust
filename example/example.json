@@ -36,7 +36,7 @@
     "mask": "RefinedMask"
   },
   "translator": {
-    "target": { "translator": "Sugoi", "target": "en" },
+    "target": { "translator": "NLLBSmallDistilled", "target": "en" },
     "filter_lang": [],
     "pre_dict": null
   },

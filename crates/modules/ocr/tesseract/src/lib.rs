@@ -1,9 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
-use image::{DynamicImage, GenericImageView as _, RgbImage};
+use image::GenericImageView as _;
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask, RawImage};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelWrap,
+};
 use interface_ocr::{Ocr, QuadrilateralInfo};
 use parking_lot::Mutex;
 use uni_ocr::{Language, OcrEngine, OcrOptions, OcrProvider};
@@ -11,23 +13,14 @@ use util::spawn_blocking;
 
 #[derive(Default)]
 pub struct TesseractOCR {
-    model: Option<OcrEngine>,
+    model: ModelWrap<OcrEngine>,
 }
 
-impl TesseractOCR {}
-
+#[async_trait::async_trait]
 impl ModelLoad for TesseractOCR {
-    type T = OcrEngine;
+    impl_model_load_helpers!(model, OcrEngine);
 
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
-    }
-
-    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
         let engine = OcrEngine::new(OcrProvider::Tesseract)
             .unwrap()
             .with_options(OcrOptions::default().languages(vec![
@@ -36,27 +29,23 @@ impl ModelLoad for TesseractOCR {
                 Language::Korean,
                 Language::English,
             ]));
-        self.model = Some(engine);
-        Ok(self.model.as_mut().unwrap())
+        *self.model.write().await = Some(engine);
+        Ok(self.get_model().await.expect("loaded before"))
     }
 }
 
 impl Model for TesseractOCR {
-    impl_model_load_helpers!("ocr", "tesseract");
+    impl_model_helpers!("ocr", "tesseract", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         HashMap::new()
-    }
-
-    fn unload(&mut self) {
-        self.model = None;
     }
 }
 
 #[async_trait::async_trait]
 impl Ocr for TesseractOCR {
     async fn detect(
-        &mut self,
+        &self,
         image: &RawImage,
         areas: &[Arc<Mutex<Quadrilateral>>],
         options: interface_ocr::OcrOptions,
@@ -90,12 +79,13 @@ impl Ocr for TesseractOCR {
 
 impl TesseractOCR {
     async fn detect_patch(
-        &mut self,
+        &self,
         sliced_image: interface_image::Mask,
         area: Arc<Mutex<interface_detector::textlines::Quadrilateral>>,
         _: &Arc<dyn interface_image::ImageOp + Send + Sync>,
     ) -> anyhow::Result<interface_ocr::QuadrilateralInfo> {
-        let model = self.load()?;
+        let model = self.load().await?;
+        let model = model.deref();
         let image = tokio::task::spawn_blocking(move || {
             image::DynamicImage::from(sliced_image.to_image().unwrap())
         })
@@ -127,7 +117,7 @@ mod tests {
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = TesseractOCR::default();
+        let mocr = TesseractOCR::default();
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],

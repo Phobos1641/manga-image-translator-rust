@@ -9,5 +9,10 @@ interface-inpainter.workspace = true
 interface-image.workspace = true
 anyhow.workspace = true
 ndarray.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+util.workspace = true
+
 [dev-dependencies]
 ndarray-npy.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

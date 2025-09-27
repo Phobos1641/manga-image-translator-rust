@@ -31,19 +31,19 @@ pub struct Models {
 }
 
 impl Models {
-    pub fn get_upscaler(&mut self, upscaler: Upscaler) -> &mut UpscalerType {
+    pub fn get_upscaler(&self, upscaler: Upscaler) -> &UpscalerType {
         self.upscalers.get(upscaler)
     }
-    pub fn get_detector(&mut self, detector: Detector) -> &mut DetectorType {
+    pub fn get_detector(&self, detector: Detector) -> &DetectorType {
         self.detectors.get(detector)
     }
-    pub fn get_ocr(&mut self, ocr: OCR) -> &mut OcrType {
+    pub fn get_ocr(&self, ocr: OCR) -> &OcrType {
         self.ocrs.get(ocr)
     }
     pub fn get_translator(&mut self, translator: Translator) -> &mut TranslatorType {
         self.translators.get(translator)
     }
-    pub fn get_inpainter(&mut self, inpainter: Inpainter) -> &mut InpainterType {
+    pub fn get_inpainter(&self, inpainter: Inpainter) -> &InpainterType {
         self.inpainters.get(inpainter)
     }
     pub async fn new(

@@ -1,25 +1,25 @@
-use std::{cmp::Ordering, path::PathBuf, sync::Arc};
+use std::{cmp::Ordering, ops::Deref, path::PathBuf, sync::Arc};
 
 use base_util::onnx::{new_session, Providers};
 use image::GenericImageView;
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, Mask};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use interface_ocr::{OcrOptions, QuadrilateralInfo};
 use maplit::hashmap;
 use ndarray::{s, stack, Array4, ArrayView2, Axis};
-use ort::{
-    inputs,
-    session::{RunOptions, Session},
-    value::Tensor,
-};
+use ort::{inputs, session::RunOptions, value::Tensor};
+use ort_parallel::AsyncSessionPool;
 use parking_lot::Mutex;
 use tokio::task::spawn_blocking;
 use util::spawn_blocking;
 
 pub struct MangaOCRModels {
-    enc: Session,
-    dec: Session,
+    enc: AsyncSessionPool,
+    dec: AsyncSessionPool,
     vocab: Vec<String>,
 }
 
@@ -30,8 +30,8 @@ impl MangaOCRModels {
         vocab: PathBuf,
         providers: &[Providers],
     ) -> anyhow::Result<Self> {
-        let enc = new_session(enc, providers)?;
-        let dec = new_session(dec, providers)?;
+        let enc = AsyncSessionPool::commit_from_file(new_session(providers)?, &enc, 10)?;
+        let dec = AsyncSessionPool::commit_from_file(new_session(providers)?, &dec, 10)?;
 
         let vocab = std::fs::read_to_string(vocab)?
             .lines()
@@ -42,7 +42,7 @@ impl MangaOCRModels {
 }
 
 pub struct MangaOCR {
-    models: Option<MangaOCRModels>,
+    models: ModelWrap<MangaOCRModels>,
     providers: Arc<Vec<Providers>>,
     max_length: usize,
 }
@@ -50,34 +50,29 @@ pub struct MangaOCR {
 impl MangaOCR {
     pub fn new(providers: Arc<Vec<Providers>>, max_length: usize) -> Self {
         Self {
-            models: None,
+            models: Default::default(),
             providers,
             max_length,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for MangaOCR {
-    type T = MangaOCRModels;
-    fn loaded(&self) -> bool {
-        self.models.is_some()
-    }
+    impl_model_load_helpers!(models, MangaOCRModels);
 
-    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
-        let enc = self.download_model("enc", "encoder_model.onnx")?;
-        let dec = self.download_model("dec", "decoder_model.onnx")?;
-        let voc = self.download_model("vocab", "vocab.txt")?;
-        self.models = Some(MangaOCRModels::new(enc, dec, voc, &self.providers)?);
-        Ok(self.models.as_mut().unwrap())
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.models.as_mut()
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
+        let enc = self.download_model("enc", "encoder_model.onnx").await?;
+        let dec = self.download_model("dec", "decoder_model.onnx").await?;
+        let voc = self.download_model("vocab", "vocab.txt").await?;
+        *self.models.write().await = Some(MangaOCRModels::new(enc, dec, voc, &self.providers)?);
+        Ok(ModelRead::new(self.models.read().await))
     }
 }
 
+#[async_trait::async_trait]
 impl Model for MangaOCR {
-    impl_model_load_helpers!("ocr", "manga-ocr");
+    impl_model_helpers!("ocr", "manga-ocr", models);
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
@@ -86,20 +81,16 @@ impl Model for MangaOCR {
             "vocab" => ModelSource { url: "https://huggingface.co/mayocream/manga-ocr-onnx/resolve/main/vocab.txt?download=true", hash: "###" },
         }
     }
-
-    fn unload(&mut self) {
-        self.models = None;
-    }
 }
 
 impl MangaOCR {
     async fn detect_patch(
-        &mut self,
+        &self,
         image: Mask,
         area: Arc<Mutex<Quadrilateral>>,
         img_processor: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<QuadrilateralInfo> {
-        self.load()?;
+        self.load().await?;
         let sos_idnex = 2;
         let eos_index = 3;
         let special_tokens = 5;
@@ -107,12 +98,13 @@ impl MangaOCR {
         let pre = preprocessor(image, img_processor.clone()).await?;
 
         let t = Tensor::from_array(pre)?;
-        let models = self.models.as_mut().expect("loaded");
+        let models = self.load().await?;
+        let models = models.deref();
         let run_options = RunOptions::new()?;
 
         let out = models
             .enc
-            .run_async(inputs! {"pixel_values" => t}, &run_options)?
+            .run_async(inputs! {"pixel_values" => t}, &run_options)
             .await?;
         let hs = &out[0];
 
@@ -129,7 +121,7 @@ impl MangaOCR {
                         "input_ids" => t,
                     },
                     &run_options,
-                )?
+                )
                 .await?;
             let logits = out["logits"].try_extract_array::<f32>()?;
             let v = logits.slice(s![0, -1, ..]);
@@ -162,7 +154,7 @@ impl MangaOCR {
 #[async_trait::async_trait]
 impl interface_ocr::Ocr for MangaOCR {
     async fn detect(
-        &mut self,
+        &self,
         image: &interface_image::RawImage,
         areas: &[Arc<Mutex<Quadrilateral>>],
         options: OcrOptions,
@@ -233,7 +225,7 @@ mod tests {
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = MangaOCR::new(Arc::new(all_providers()), 255);
+        let mocr = MangaOCR::new(Arc::new(all_providers()), 255);
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],

@@ -1,33 +1,28 @@
 mod hypo;
 mod infer;
 
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf, sync::Arc};
+use std::{fs::read_to_string, ops::Deref, sync::Arc};
 
-use base_util::{
-    onnx::{new_session, Providers},
-    opencv_utils::to_continous2,
-};
+use base_util::onnx::{new_session, Providers};
 use interface_detector::textlines::Quadrilateral;
-use interface_image::{ImageOp, RawImage, RawImageCow};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_image::{ImageOp, RawImage};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use interface_ocr::{Ocr, OcrOptions, QuadrilateralInfo};
 use maplit::hashmap;
-use ndarray::{s, Array4, Axis};
-use opencv::core::{Mat, MatTraitConst as _, MatTraitConstManual};
-use ort::{
-    session::{RunOptions, Session},
-    sys::OrtRunOptions,
-};
-use parking_lot::Mutex;
-use util::{
-    average::AvgMeter, ocr, resize::get_transformed_region, spawn_blocking,
-    text_direction::generate_text_direction,
-};
+use ort::session::RunOptions;
+use ort_parallel::AsyncSessionPool;
+use util::{average::AvgMeter, ocr, spawn_blocking};
 
 use crate::infer::Pred;
 
 pub struct Ocr48px {
-    model: Option<((Session, Session, Session), Vec<String>)>,
+    model: ModelWrap<(
+        (AsyncSessionPool, AsyncSessionPool, AsyncSessionPool),
+        Vec<String>,
+    )>,
     providers: Arc<Vec<Providers>>,
     max_seq_len: i32,
     max_batch_size: usize,
@@ -36,7 +31,7 @@ pub struct Ocr48px {
 impl Ocr48px {
     pub fn new(providers: Arc<Vec<Providers>>, max_seq_len: i32, max_batch_size: usize) -> Self {
         Self {
-            model: None,
+            model: Default::default(),
             providers,
             max_batch_size,
             max_seq_len,
@@ -44,37 +39,43 @@ impl Ocr48px {
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for Ocr48px {
-    type T = ((Session, Session, Session), Vec<String>);
+    impl_model_load_helpers!(
+        model,
+        (
+            (AsyncSessionPool, AsyncSessionPool, AsyncSessionPool),
+            Vec<String>,
+        )
+    );
 
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
-    }
-
-    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
-        let decoder = self.download_model("decoder", "decoder.onnx")?;
-        let encoder = self.download_model("encoder", "encoder.onnx")?;
-        let color_pred = self.download_model("color_pred", "color_pred.onnx")?;
-        let dict = self.download_model("alphabet-all-v7", "alphabet-all-v7.txt")?;
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
+        let decoder = self.download_model("decoder", "decoder.onnx").await?;
+        let encoder = self.download_model("encoder", "encoder.onnx").await?;
+        let color_pred = self.download_model("color_pred", "color_pred.onnx").await?;
+        let dict = self
+            .download_model("alphabet-all-v7", "alphabet-all-v7.txt")
+            .await?;
         let dict = read_to_string(dict)
             .unwrap()
             .lines()
             .map(|v| v.trim_end().to_string())
             .collect::<Vec<String>>();
-        let encoder = new_session(encoder, &self.providers)?;
-        let color_pred = new_session(color_pred, &self.providers)?;
-        let decoder = new_session(decoder, &self.providers)?;
+        let encoder =
+            AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &encoder, 10)?;
+        let color_pred =
+            AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &color_pred, 10)?;
+        let decoder =
+            AsyncSessionPool::commit_from_file(new_session(&self.providers)?, &decoder, 10)?;
 
-        self.model = Some(((encoder, decoder, color_pred), dict));
-        Ok(self.model.as_mut().unwrap())
+        *self.model.write().await = Some(((encoder, decoder, color_pred), dict));
+        Ok(self.get_model().await.expect("set above"))
     }
 }
+
+#[async_trait::async_trait]
 impl Model for Ocr48px {
-    impl_model_load_helpers!("ocr", "48px");
+    impl_model_helpers!("ocr", "48px", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
@@ -83,10 +84,6 @@ impl Model for Ocr48px {
             "color_pred" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/color_pred.onnx", hash: "###" },
             "alphabet-all-v7" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ocr-48px/alphabet-all-v7.txt", hash: "###" }
         }
-    }
-
-    fn unload(&mut self) {
-        self.model = None;
     }
 }
 
@@ -170,7 +167,7 @@ fn post_process(
 #[async_trait::async_trait]
 impl Ocr for Ocr48px {
     async fn detect(
-        &mut self,
+        &self,
         image: &RawImage,
         areas: &[Arc<parking_lot::Mutex<Quadrilateral>>],
         options: OcrOptions,
@@ -190,7 +187,8 @@ impl Ocr for Ocr48px {
             &options.debug_path,
         ))??;
         let max_seq_len = self.max_seq_len;
-        let ((encoder, decoder, color_pred), dict) = self.load()?;
+        let model = self.load().await?;
+        let ((encoder, decoder, color_pred), dict) = model.deref();
         let dict = &*dict;
         let run_options = RunOptions::new()?;
         for (images, widths, areas) in items {
@@ -231,7 +229,7 @@ mod tests {
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = Ocr48px::new(Arc::new(all_providers()), 255, 16);
+        let mocr = Ocr48px::new(Arc::new(all_providers()), 255, 16);
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],

@@ -1,18 +1,22 @@
 mod decode;
 
-use std::{fs::read_to_string, sync::Arc};
+use std::{fs::read_to_string, ops::Deref as _, sync::Arc};
 
 use base_util::onnx::{new_session, Providers};
 use interface_detector::textlines::Quadrilateral;
 use interface_image::{ImageOp, RawImage};
-use interface_model::{impl_model_load_helpers, Model, ModelLoad, ModelSource};
+use interface_model::{
+    impl_model_helpers, impl_model_load_helpers, Model, ModelLoad, ModelRead, ModelSource,
+    ModelWrap,
+};
 use interface_ocr::{Ocr, OcrOptions, QuadrilateralInfo};
 use maplit::hashmap;
-use ort::session::Session;
-use util::{average::AvgMeter, ocr};
+use ort_parallel::AsyncSessionPool;
+use parking_lot::Mutex;
+use util::{average::AvgMeter, ocr, spawn_blocking};
 
 pub struct Ctc48pxOcr {
-    model: Option<(Session, Vec<String>)>,
+    model: ModelWrap<(AsyncSessionPool, Vec<String>)>,
     providers: Arc<Vec<Providers>>,
     max_batch_size: usize,
 }
@@ -20,40 +24,40 @@ pub struct Ctc48pxOcr {
 impl Ctc48pxOcr {
     pub fn new(providers: Arc<Vec<Providers>>, max_batch_size: usize) -> Self {
         Self {
-            model: None,
+            model: Default::default(),
             providers,
             max_batch_size,
         }
     }
 }
 
+#[async_trait::async_trait]
 impl ModelLoad for Ctc48pxOcr {
-    type T = (Session, Vec<String>);
+    impl_model_load_helpers!(model, (AsyncSessionPool, Vec<String>));
 
-    fn loaded(&self) -> bool {
-        self.model.is_some()
-    }
-
-    fn get_model(&mut self) -> Option<&mut Self::T> {
-        self.model.as_mut()
-    }
-
-    fn reload(&mut self) -> anyhow::Result<&mut Self::T> {
-        let model = self.download_model("model", "model.onnx")?;
-        let dict = self.download_model("alphabet-all-v5", "alphabet-all-v5.txt")?;
+    async fn reload(&self) -> anyhow::Result<ModelRead<'_, Self::T>> {
+        let model = self.download_model("model", "model.onnx").await?;
+        let dict = self
+            .download_model("alphabet-all-v5", "alphabet-all-v5.txt")
+            .await?;
         let dict = read_to_string(dict)
             .unwrap()
             .lines()
             .map(|v| v.trim_end().to_string())
             .collect::<Vec<String>>();
-        let model = new_session(model, &self.providers)?;
+        let builder = new_session(&self.providers)?;
+        let model = AsyncSessionPool::commit_from_file(builder, &model, 10)?;
 
-        self.model = Some((model, dict));
-        Ok(self.model.as_mut().unwrap())
+        *self.model.write().await = Some((model, dict));
+        let m = self.model.as_ref().read().await;
+        let m = ModelRead::new(m);
+        Ok(m)
     }
 }
+
+#[async_trait::async_trait]
 impl Model for Ctc48pxOcr {
-    impl_model_load_helpers!("ocr", "ctc-48px");
+    impl_model_helpers!("ocr", "ctc-48px", model);
 
     fn models(&self) -> std::collections::HashMap<&'static str, interface_model::ModelSource> {
         hashmap! {
@@ -61,78 +65,87 @@ impl Model for Ctc48pxOcr {
             "alphabet-all-v5" => ModelSource { url: "https://github.com/frederik-uni/manga-image-translator-rust/releases/download/ctc-48px/alphabet-all-v5.txt", hash: "###" }
         }
     }
+}
 
-    fn unload(&mut self) {
-        self.model = None;
+fn post_process(
+    texts: Vec<Vec<(i64, f32, f32, f32, f32, f32, f32, f32)>>,
+    dict: &[String],
+    areas: &[Arc<Mutex<Quadrilateral>>],
+) -> Vec<QuadrilateralInfo> {
+    let mut out = vec![];
+    for (i, single_line) in texts.into_iter().enumerate() {
+        if single_line.is_empty() {
+            continue;
+        }
+        let mut cur_texts = String::new();
+        let mut total = AvgMeter::default();
+        let mut avgs = [AvgMeter::default(); 6];
+        for (chid, logprob, fr, fg, fb, br, bg, bb) in single_line {
+            let mut ch = dict[chid as usize].as_str();
+            if ch == "<SP>" {
+                ch = " ";
+            } else {
+                avgs[0].update((fr * 255.0) as i32);
+                avgs[1].update((fg * 255.0) as i32);
+                avgs[2].update((fb * 255.0) as i32);
+                avgs[3].update((br * 255.0) as i32);
+                avgs[4].update((bg * 255.0) as i32);
+                avgs[5].update((bb * 255.0) as i32);
+            }
+            cur_texts.push_str(ch);
+            total.update(logprob);
+        }
+        let prob = total.average().exp();
+
+        out.push(QuadrilateralInfo {
+            text: cur_texts,
+            fg: Some([
+                avgs[0].average() as u8,
+                avgs[1].average() as u8,
+                avgs[2].average() as u8,
+            ]),
+            bg: Some([
+                avgs[3].average() as u8,
+                avgs[4].average() as u8,
+                avgs[5].average() as u8,
+            ]),
+            // allow:clone[arc]
+            pos: areas[i].clone(),
+            prob,
+        });
     }
+    out
 }
 
 #[async_trait::async_trait]
 impl Ocr for Ctc48pxOcr {
     async fn detect(
-        &mut self,
+        &self,
         image: &RawImage,
         areas: &[Arc<parking_lot::Mutex<Quadrilateral>>],
         options: OcrOptions,
         _: &Arc<dyn ImageOp + Send + Sync>,
     ) -> anyhow::Result<Vec<QuadrilateralInfo>> {
         let text_height = 48;
+        let items = spawn_blocking!(|| {
+            ocr::prepare(
+                image,
+                areas,
+                text_height,
+                self.max_batch_size,
+                &options.debug_path,
+            )
+        })??;
 
-        let items = ocr::prepare(
-            image,
-            areas,
-            text_height,
-            self.max_batch_size,
-            &options.debug_path,
-        )?;
         //TODO: ignore bubble
         let mut out = vec![];
 
-        let (model, dict) = self.load()?;
+        let m = self.load().await?;
+        let (model, dict) = m.deref();
         let dict = &*dict;
         for (images, _, areas) in items {
-            let texts = decode::decode(model, images, 0);
-            for (i, single_line) in texts.into_iter().enumerate() {
-                if single_line.is_empty() {
-                    continue;
-                }
-                let mut cur_texts = String::new();
-                let mut total = AvgMeter::default();
-                let mut avgs = [AvgMeter::default(); 6];
-                for (chid, logprob, fr, fg, fb, br, bg, bb) in single_line {
-                    let mut ch = dict[chid as usize].as_str();
-                    if ch == "<SP>" {
-                        ch = " ";
-                    } else {
-                        avgs[0].update((fr * 255.0) as i32);
-                        avgs[1].update((fg * 255.0) as i32);
-                        avgs[2].update((fb * 255.0) as i32);
-                        avgs[3].update((br * 255.0) as i32);
-                        avgs[4].update((bg * 255.0) as i32);
-                        avgs[5].update((bb * 255.0) as i32);
-                    }
-                    cur_texts.push_str(ch);
-                    total.update(logprob);
-                }
-                let prob = total.average().exp();
-
-                out.push(QuadrilateralInfo {
-                    text: cur_texts,
-                    fg: Some([
-                        avgs[0].average() as u8,
-                        avgs[1].average() as u8,
-                        avgs[2].average() as u8,
-                    ]),
-                    bg: Some([
-                        avgs[3].average() as u8,
-                        avgs[4].average() as u8,
-                        avgs[5].average() as u8,
-                    ]),
-                    // allow:clone[arc]
-                    pos: areas[i].clone(),
-                    prob,
-                });
-            }
+            let texts = decode::decode(model, images, 0).await?;
+            out.extend(spawn_blocking!(|| post_process(texts, dict, &areas))?);
         }
         Ok(out)
     }
@@ -168,7 +181,7 @@ mod tests {
     async fn ocr_test() {
         let img = RawImage::new("./imgs/232265329-6a560438-e887-4f7f-b6a1-a61b8648f781.png")
             .expect("Failed to load image");
-        let mut mocr = Ctc48pxOcr::new(Arc::new(all_providers()), 16);
+        let mocr = Ctc48pxOcr::new(Arc::new(all_providers()), 16);
         let inp = vec![
             Arc::new(Mutex::new(Quadrilateral::new(
                 vec![(208, 4), (246, 4), (246, 192), (208, 192)],

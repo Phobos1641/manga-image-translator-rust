@@ -10,7 +10,7 @@ use crate::{execute::ImageProcessor, settings::OCRSettings, setup::Models};
 
 impl Models {
     pub async fn run_ocr(
-        &mut self,
+        &self,
         img: &RawImage,
         areas: &[Arc<Mutex<Quadrilateral>>],
         config: &OCRSettings,

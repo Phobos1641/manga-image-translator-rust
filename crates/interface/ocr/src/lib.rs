@@ -13,7 +13,7 @@ pub struct OcrOptions {
 #[async_trait::async_trait]
 pub trait Ocr {
     async fn detect(
-        &mut self,
+        &self,
         image: &RawImage,
         areas: &[Arc<Mutex<Quadrilateral>>],
         options: OcrOptions,

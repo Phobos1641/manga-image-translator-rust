@@ -33,6 +33,7 @@ ocr-48px.workspace = true
 html.workspace = true
 ort = { workspace = true, features = ["cuda"] }
 async-scoped = { workspace = true, features = ["use-tokio"] }
+util.workspace = true
 
 strum = "0.27.2"
 strum_macros = "0.27.2"

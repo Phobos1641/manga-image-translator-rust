@@ -1,0 +1,35 @@
+name: Deploy mdBook
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install mdBook
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mdbook
+
+      - name: Build book
+        run: mdbook build docs
+
+      - name: Copy wheels folder
+        run: cp -r python/wheels docs/book/python/wheels
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/book

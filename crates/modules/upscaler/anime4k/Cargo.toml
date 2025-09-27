@@ -13,3 +13,6 @@ maplit.workspace = true
 half.workspace = true
 ndarray.workspace = true
 anyhow.workspace = true
+ort-parallel.workspace = true
+async-trait.workspace = true
+util.workspace = true

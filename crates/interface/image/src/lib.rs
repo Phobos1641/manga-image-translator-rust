@@ -1,5 +1,7 @@
 use std::{
     fmt::{self},
+    fs::File,
+    io::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -11,7 +13,7 @@ mod rayon;
 use base_util::ndarray_utils;
 pub use cpu::CpuImageProcessor;
 use image::{DynamicImage, RgbaImage};
-use ndarray::{Array2, ArrayView, ArrayView2, ArrayView3, Dim};
+use ndarray::{Array2, Array4, ArrayView, ArrayView2, ArrayView3, Dim};
 use opencv::{
     boxed_ref::{BoxedRef, BoxedRefMut},
     core::{Mat, MatTrait, MatTraitConst as _},
@@ -33,6 +35,54 @@ pub struct RawImage {
     pub height: DimType,
     /// Always 3
     pub channels: u8,
+}
+
+pub fn save_raw_image(path: &std::path::Path, img: &RawImage) -> std::io::Result<()> {
+    let mut file = File::create(path)?;
+    file.write_all(&img.width.to_le_bytes())?;
+    file.write_all(&img.height.to_le_bytes())?;
+    file.write_all(&[img.channels]).unwrap();
+    file.write_all(&img.data)?;
+    Ok(())
+}
+
+pub fn load_raw_image(path: &std::path::Path) -> std::io::Result<RawImage> {
+    let buf = std::fs::read(path)?;
+    let dim_size = std::mem::size_of::<DimType>();
+
+    let width = DimType::from_le_bytes(buf[0..dim_size].try_into().unwrap());
+    let height = DimType::from_le_bytes(buf[dim_size..2 * dim_size].try_into().unwrap());
+    let channels = buf[2 * dim_size];
+
+    let data = buf[2 * dim_size + 1..].to_vec();
+
+    Ok(RawImage {
+        width,
+        height,
+        channels,
+        data,
+    })
+}
+
+pub fn save_mask(path: &std::path::Path, img: Mask) -> std::io::Result<()> {
+    save_raw_image(
+        path,
+        &RawImage {
+            data: img.data,
+            width: img.width,
+            height: img.height,
+            channels: 1,
+        },
+    )
+}
+
+pub fn load_mask(path: &std::path::Path) -> std::io::Result<Mask> {
+    let img = load_raw_image(path)?;
+    Ok(Mask {
+        width: img.width,
+        height: img.height,
+        data: img.data,
+    })
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -101,7 +151,7 @@ impl<'a> From<ArrayView3<'a, u8>> for RawImageCow<'a> {
 }
 
 impl RawImageCow<'_> {
-    pub fn view(&self) -> RawImageView {
+    pub fn view(&self) -> RawImageView<'_> {
         match self {
             RawImageCow::Borrowed(view) => *view,
             RawImageCow::Owned(image) => image.view(),
@@ -648,6 +698,12 @@ pub trait ImageOp {
     fn bgr_to_rgb(&self, img: RawImage) -> RawImage;
 
     fn mask_func(&self, mask1: Mask, mask2: Mask, func: fn(u8, u8) -> u8) -> Mask;
+    fn substract_mean_normalize(
+        &self,
+        img_src: &RawImage,
+        mean_vals: &[f32],
+        norm_vals: &[f32],
+    ) -> Array4<f32>;
 }
 pub enum Interpolation {
     Nearest,

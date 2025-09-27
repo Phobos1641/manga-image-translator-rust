@@ -22,9 +22,12 @@ ndarray.workspace = true
 ordered-float = "5.0.0"
 env_logger.workspace = true
 ndarray-linalg = { workspace = true, features = ["intel-mkl-static"] }
+ort-parallel.workspace = true
+async-trait.workspace = true
 
 [dev-dependencies]
 criterion = "0.6.0"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 
 [[bench]]

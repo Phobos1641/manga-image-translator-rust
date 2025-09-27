@@ -10,8 +10,8 @@ pub type UpscalerType = Box<dyn interface_upscaler::Upscaler + Send + Sync>;
 
 pub struct Upscalers(HashMap<Upscaler, UpscalerType>);
 impl Upscalers {
-    pub fn get(&mut self, upscaler: Upscaler) -> &mut UpscalerType {
-        self.0.get_mut(&upscaler).expect("Upscaler not registered")
+    pub fn get(&self, upscaler: Upscaler) -> &UpscalerType {
+        self.0.get(&upscaler).expect("Upscaler not registered")
     }
     pub fn new(max_batch_size: usize, fast: bool) -> Self {
         let mut items = HashMap::new();

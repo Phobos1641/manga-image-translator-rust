@@ -4,6 +4,7 @@ use fast_image_resize::{
     FilterType, ResizeAlg, ResizeOptions, Resizer,
 };
 
+use ndarray::Array4;
 use rayon::{
     iter::{
         IndexedParallelIterator as _, IntoParallelIterator as _, IntoParallelRefIterator as _,
@@ -597,5 +598,35 @@ impl ImageOp for RayonImageProcessor {
             });
 
         mask1
+    }
+
+    fn substract_mean_normalize(
+        &self,
+        img_src: &RawImage,
+        mean_vals: &[f32],
+        norm_vals: &[f32],
+    ) -> Array4<f32> {
+        assert_eq!(img_src.channels, 3);
+        let cols = img_src.width as usize;
+        let rows = img_src.height as usize;
+        let channels = 3;
+
+        let mut buffer = vec![0.0f32; rows * cols * channels];
+
+        buffer
+            .par_chunks_mut(rows * cols)
+            .enumerate()
+            .for_each(|(ch, ch_slice)| {
+                for r in 0..rows {
+                    for c in 0..cols {
+                        let src_idx = r * cols * channels + c * channels + ch;
+                        let dst_idx = r * cols + c;
+                        let value = img_src.data[src_idx] as f32;
+                        ch_slice[dst_idx] = value * norm_vals[ch] - mean_vals[ch] * norm_vals[ch];
+                    }
+                }
+            });
+
+        Array4::from_shape_vec((1, channels, rows, cols), buffer).unwrap()
     }
 }

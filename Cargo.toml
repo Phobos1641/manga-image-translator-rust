@@ -20,7 +20,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 
 [workspace.dependencies]
@@ -112,6 +112,7 @@ v_htmlescape = "0.15.8"
 base64 = "0.22.1"
 zip = "5.1.1"
 async-scoped = "0.9.0"
+ort-parallel = "0.1.0"
 
 [patch.crates-io]
 clipper2c-sys = { git = "https://github.com/tirithen/clipper2c-sys" }
