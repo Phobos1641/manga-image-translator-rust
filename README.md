@@ -1,9 +1,5 @@
-# Manga/Image Translator
+# Manga Image Translator
 
-*   [Modules](docs/MODULES.md)
-*   [Roadmap](docs/ROADMAP.md)
-*   [Install](docs/INSTALL.md)
-*   [Build from Source](docs/BUILD.md)
-*   [How to use it](docs/USAGE.md)
+*   [Docs/Install Guide](https://frederik-uni.github.io/manga-image-translator-rust/index.html)
 *   [Config file example](docs/example.json)
 *   [Config file schema](docs/schema.json)
