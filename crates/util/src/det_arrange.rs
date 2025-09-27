@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use anyhow::bail;
 use interface_image::{DimType, ImageOp, Interpolation, RawImage, RawImageCow, RawImageView};
