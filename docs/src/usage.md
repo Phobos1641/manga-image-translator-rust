@@ -12,3 +12,12 @@ Options:
       --overwrite        Overwrite already translated images
   -h, --help             Print help
   -V, --version          Print version
+```
+
+Only 
+- coreml
+- cuda
+- cpu
+- tensorrt
+
+is supported right now. For AMD support look at how to enable rocm for onnxruntime or maybe ZLUDA
