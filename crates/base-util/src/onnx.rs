@@ -90,9 +90,11 @@ pub fn new_session_(
                 .build(),
             Providers::CoreML => CoreMLExecutionProvider::default()
                 .with_model_cache_dir("models/cache")
+                .with_compute_units(ort::execution_providers::coreml::CoreMLComputeUnits::All)
                 .build(),
             Providers::RocM => ROCmExecutionProvider::default().with_device_id(0).build(),
-        };
+        }
+        .error_on_failure();
         if let Ok(session_builder) = session_builder
             .clone()
             .with_execution_providers(vec![provider])
