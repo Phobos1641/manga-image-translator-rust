@@ -86,10 +86,3 @@ cuda = ["ort/cuda"]
 coreml = ["ort/coreml"]
 tensorrt = ["ort/tensorrt"]
 rocm = ["ort/rocm"]
-
-
-[target.'cfg(target_os = "macos")'.features]
-default = ["coreml"]
-
-[target.'cfg(not(target_os = "macos"))'.features]
-default = ["cuda", "tensorrt"]
