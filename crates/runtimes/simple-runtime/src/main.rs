@@ -30,29 +30,6 @@ mod update;
 
 #[tokio::main]
 async fn main() {
-    let ui = std::env::args().count() == 1;
-    if ui {
-        let native_options = eframe::NativeOptions {
-            viewport: egui::ViewportBuilder::default()
-                .with_inner_size([400.0, 300.0])
-                .with_min_inner_size([300.0, 220.0]),
-            // .with_icon(
-            //     // NOTE: Adding an icon is optional
-            //     eframe::icon_data::from_png_bytes(
-            //         &include_bytes!("../assets/icon-256.png")[..],
-            //     )
-            //     .expect("Failed to load icon"),
-            // ),
-            ..Default::default()
-        };
-        eframe::run_native(
-            "Manga Image Translator",
-            native_options,
-            Box::new(|cc| Ok(Box::new(ui::MitApp::new(cc)))),
-        )
-        .expect("Failed to run egui");
-        return;
-    }
     let cli = cli::Cli::parse();
     let (level, ort_level) = match cli.verbose {
         3 | 2 => ("debug", "ort=debug"),
@@ -73,47 +50,7 @@ async fn main() {
         warn!("CUDA is not available")
     }
     let _ = check_crate_version("frederik-uni/manga-image-translator-rust").await;
-    let mut input = WalkDir::new(&cli.input)
-        .into_iter()
-        .filter_map(|v| v.ok())
-        .map(|v| v.path().to_path_buf())
-        .filter(|v| v.is_file())
-        .filter(|v| !v.to_string_lossy().starts_with("."))
-        .map(|v| {
-            v.strip_prefix(&cli.input)
-                .map(|v| v.to_path_buf())
-                .unwrap_or(v)
-        })
-        //TODO: add other extensions
-        .filter(|v| {
-            ["png", "jpg", "jpeg", "webp"].contains(
-                &v.extension()
-                    .map(|v| v.to_string_lossy())
-                    .unwrap_or_default()
-                    .to_lowercase()
-                    .as_str(),
-            )
-        })
-        .collect::<Vec<_>>();
-    let mut settings = Config::builder();
-    if let Some(config) = cli.config {
-        if !config.exists() {
-            panic!("Config file does not exist")
-        }
-        settings = settings.add_source(config::File::from(config));
-    }
-    let settings = settings.build().expect("Failed to build settings");
-    let settings = settings.try_deserialize::<Settings>().unwrap_or_default();
-    let out_ext = settings.render.renderer.extension();
-    input.iter_mut().for_each(|v| {
-        v.set_extension(out_ext);
-    });
-    if !cli.overwrite {
-        input = input
-            .into_iter()
-            .filter(|v| !cli.output.join(v).exists())
-            .collect::<Vec<_>>();
-    }
+
     let mut models = Models::new(
         cli.max_batch_size_upscaler,
         cli.max_batch_size_ocr,
@@ -121,67 +58,122 @@ async fn main() {
         cuda,
     )
     .await;
-    for path in input {
-        info!("Processing {}", path.display());
-        let output = cli.output.join(&path);
-        let path = cli.input.join(path);
-        if !path.exists() || !path.is_file() {
-            warn!("File {} cant be found", path.display());
-            continue;
-        }
-        let img = match image::open(&path) {
-            Ok(img) => img,
-            Err(err) => {
-                error!("Failed to open image {}: {}", path.display(), err);
-                continue;
+    match cli.command {
+        cli::Commands::Cli {
+            input,
+            output,
+            config,
+            overwrite,
+        } => {
+            let mut input_list = WalkDir::new(&input)
+                .into_iter()
+                .filter_map(|v| v.ok())
+                .map(|v| v.path().to_path_buf())
+                .filter(|v| v.is_file())
+                .filter(|v| !v.to_string_lossy().starts_with("."))
+                .map(|v| v.strip_prefix(&input).map(|v| v.to_path_buf()).unwrap_or(v))
+                //TODO: add other extensions
+                .filter(|v| {
+                    ["png", "jpg", "jpeg", "webp"].contains(
+                        &v.extension()
+                            .map(|v| v.to_string_lossy())
+                            .unwrap_or_default()
+                            .to_lowercase()
+                            .as_str(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mut settings = Config::builder();
+            if let Some(config) = config {
+                if !config.exists() {
+                    panic!("Config file does not exist")
+                }
+                settings = settings.add_source(config::File::from(config));
             }
-        };
-        let debug_path = if cli.verbose > 2 {
-            let id = uuid::Uuid::new_v4();
-            let p = PathBuf::from(format!("debug/{}", id.to_string()));
-            create_dir_all(&p).expect("Failed to create debug directory");
-            Some(p)
-        } else {
-            None
-        };
-        let exp = models.execute(img, &settings, debug_path).await.unwrap();
-        let exp = match exp {
-            Some(v) => v,
-            None => {
-                info!("Failed to detect any translatable content");
-                continue;
+            let settings = settings.build().expect("Failed to build settings");
+            let settings = settings.try_deserialize::<Settings>().unwrap_or_default();
+            let out_ext = settings.render.renderer.extension();
+            if !overwrite {
+                input_list = input_list
+                    .into_iter()
+                    .filter(|v| {
+                        let mut path = output.join(v);
+                        path.set_extension(out_ext);
+                        !path.exists()
+                    })
+                    .collect::<Vec<_>>();
             }
-        };
-        if settings.render.renderer == Renderer::Html {
-            let (data, _) = HtmlRenderer::render(vec![exp], None, false);
-            if let Some(parent) = output.parent() {
-                create_dir_all(parent).expect("Failed to create parent directory");
-                html::copy_files(parent).expect("Failed to copy important js files");
-            }
-            File::create(output).unwrap().write_all(&data).unwrap();
-        } else {
-            let bin = exp.export();
-            if let Some(parent) = output.parent() {
-                create_dir_all(parent).expect("Failed to create parent directory");
-            }
-            File::create(output).unwrap().write_all(&bin).unwrap();
-        }
 
-        //TODO: from config
-        // renderer.render(
-        //     exp,
-        //     PngRenderConfig {
-        //         min_fontsize: 2.0,
-        //         max_fontsize: 20.0,
-        //         detect_offset: 1000000.0,
-        //         fg_color: None,
-        //         bg_color: None,
-        //         align: MyAlign::Center,
-        //         letter_spacing: None,
-        //         font_size: 0.0,
-        //         line_height: 0.0,
-        //         family: None,
-        //     },
-        // );
+            for path in input_list {
+                info!("Processing {}", path.display());
+                let mut output = output.join(&path);
+                let path = input.join(path);
+                if !path.exists() || !path.is_file() {
+                    warn!("File {} cant be found", path.display());
+                    continue;
+                }
+                let img = match image::open(&path) {
+                    Ok(img) => img,
+                    Err(err) => {
+                        error!("Failed to open image {}: {}", path.display(), err);
+                        continue;
+                    }
+                };
+                let debug_path = if cli.verbose > 2 {
+                    let id = uuid::Uuid::new_v4();
+                    let p = PathBuf::from(format!("debug/{}", id.to_string()));
+                    create_dir_all(&p).expect("Failed to create debug directory");
+                    Some(p)
+                } else {
+                    None
+                };
+                let exp = models.execute(img, &settings, debug_path).await.unwrap();
+                let exp = match exp {
+                    Some(v) => v,
+                    None => {
+                        info!("Failed to detect any translatable content");
+                        continue;
+                    }
+                };
+                output.set_extension(out_ext);
+                if settings.render.renderer == Renderer::Html {
+                    let (data, _) = HtmlRenderer::render(vec![exp], None, false);
+                    if let Some(parent) = output.parent() {
+                        create_dir_all(parent).expect("Failed to create parent directory");
+                        html::copy_files(parent).expect("Failed to copy important js files");
+                    }
+                    File::create(output).unwrap().write_all(&data).unwrap();
+                } else {
+                    let bin = exp.export();
+                    if let Some(parent) = output.parent() {
+                        create_dir_all(parent).expect("Failed to create parent directory");
+                    }
+                    File::create(output).unwrap().write_all(&bin).unwrap();
+                }
+            }
+        }
+        cli::Commands::Api { host, port } => api::main(&host, port).await.unwrap(),
+        cli::Commands::Ui => {
+            let native_options = eframe::NativeOptions {
+                viewport: egui::ViewportBuilder::default()
+                    .with_inner_size([400.0, 300.0])
+                    .with_min_inner_size([300.0, 220.0]),
+                // .with_icon(
+                //     // NOTE: Adding an icon is optional
+                //     eframe::icon_data::from_png_bytes(
+                //         &include_bytes!("../assets/icon-256.png")[..],
+                //     )
+                //     .expect("Failed to load icon"),
+                // ),
+                ..Default::default()
+            };
+            eframe::run_native(
+                "Manga Image Translator",
+                native_options,
+                Box::new(|cc| Ok(Box::new(ui::MitApp::new(cc)))),
+            )
+            .expect("Failed to run egui");
+            return;
+        }
     }
 }

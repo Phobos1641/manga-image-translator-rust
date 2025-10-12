@@ -88,7 +88,7 @@ async fn upload_image(MultipartForm(form): MultipartForm<UploadForm>) -> impl Re
     HttpResponse::Ok().body(uuid)
 }
 
-async fn main() -> std::io::Result<()> {
+pub async fn main(host: &str, port: u16) -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(defaults_detector)
@@ -100,7 +100,7 @@ async fn main() -> std::io::Result<()> {
             .service(get_image)
             .service(hello)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((host, port))?
     .run()
     .await
 }
