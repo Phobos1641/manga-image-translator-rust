@@ -196,6 +196,12 @@
 <p>Install <a href="https://developer.nvidia.com/cudnn-downloads">cudnn</a></p>
 <p>If you use cuda delete the <code>cudnn*</code> file in the downloaded folder.
 Otherwise, delete the <code>onnxruntime cuda execution provider</code></p>
+<h2 id="linux-only"><a class="header" href="#linux-only">Linux only</a></h2>
+<ul>
+<li><code>cd path/to/folder</code></li>
+<li><code>echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$(pwd)" &gt;&gt; ~/.bashrc</code></li>
+<li><code>echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$(pwd)" &gt;&gt; ~/.zshrc</code></li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
 <pre><code class="language-sh">❯ cargo r -p simple-runtime -- cli -i path/to/input -o path/to/output
 ❯ ./runtime cli -i path/to/input -o path/to/output
