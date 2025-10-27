@@ -15,3 +15,8 @@ Otherwise, delete the `onnxruntime cuda execution provider`
 - `cd path/to/folder`
 - `echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$(pwd)" >> ~/.bashrc`
 - `echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:$(pwd)" >> ~/.zshrc`
+
+## MacOS only
+- `cd path/to/folder`
+- `echo "export DYLD_LIBRARY_PATH=\$DYLD_LIBRARY_PATH:$(pwd)" >> ~/.bashrc`
+- `echo "export DYLD_LIBRARY_PATH=\$DYLD_LIBRARY_PATH:$(pwd)" >> ~/.zshrc`
