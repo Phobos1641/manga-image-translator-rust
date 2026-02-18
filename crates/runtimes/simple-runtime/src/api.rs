@@ -19,36 +19,52 @@ async fn hello() -> impl Responder {
 #[get("/defaults/detector")]
 async fn defaults_detector() -> impl Responder {
     let settings = settings::DetectorSettings::default();
-    let str = serde_json::to_string(&settings).unwrap();
-    HttpResponse::Ok().body(str)
+    match serde_json::to_string(&settings) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(err) => HttpResponse::InternalServerError()
+            .body(format!("Failed to serialize detector settings: {err}")),
+    }
 }
 
 #[get("/defaults/ocr")]
 async fn defaults_ocr() -> impl Responder {
     let settings = settings::OCRSettings::default();
-    let str = serde_json::to_string(&settings).unwrap();
-    HttpResponse::Ok().body(str)
+    match serde_json::to_string(&settings) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(err) => HttpResponse::InternalServerError()
+            .body(format!("Failed to serialize OCR settings: {err}")),
+    }
 }
 
 #[get("/defaults/inpainter")]
 async fn defaults_inpainter() -> impl Responder {
     let settings = settings::InpainterSettings::default();
-    let str = serde_json::to_string(&settings).unwrap();
-    HttpResponse::Ok().body(str)
+    match serde_json::to_string(&settings) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(err) => HttpResponse::InternalServerError()
+            .body(format!("Failed to serialize inpainter settings: {err}")),
+    }
 }
 
 #[get("/defaults/mask_refinement")]
 async fn defaults_mask_refinement() -> impl Responder {
     let settings = settings::MaskRefinementSettings::default();
-    let str = serde_json::to_string(&settings).unwrap();
-    HttpResponse::Ok().body(str)
+    match serde_json::to_string(&settings) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(err) => HttpResponse::InternalServerError().body(format!(
+            "Failed to serialize mask refinement settings: {err}"
+        )),
+    }
 }
 
 #[get("/defaults/translator")]
 async fn defaults_translator() -> impl Responder {
     let settings = settings::TranslatorSettings::default();
-    let str = serde_json::to_string(&settings).unwrap();
-    HttpResponse::Ok().body(str)
+    match serde_json::to_string(&settings) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(err) => HttpResponse::InternalServerError()
+            .body(format!("Failed to serialize translator settings: {err}")),
+    }
 }
 
 const UPLOAD_DIR: &str = "./uploads";

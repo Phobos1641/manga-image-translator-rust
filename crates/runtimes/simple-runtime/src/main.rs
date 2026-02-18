@@ -2,6 +2,7 @@ use std::{
     fs::{create_dir_all, File},
     io::Write,
     path::PathBuf,
+    process::ExitCode,
 };
 
 use clap::Parser as _;
@@ -29,7 +30,7 @@ mod ui;
 mod update;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     let cli = cli::Cli::parse();
     let (level, ort_level) = match cli.verbose {
         3 | 2 => ("debug", "ort=debug"),
@@ -38,7 +39,13 @@ async fn main() {
     };
 
     let base_filter = EnvFilter::new(level);
-    let filter = base_filter.add_directive(ort_level.parse().unwrap());
+    let filter = match ort_level.parse() {
+        Ok(directive) => base_filter.add_directive(directive),
+        Err(err) => {
+            eprintln!("Failed to parse ORT log directive '{ort_level}': {err}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     tracing_subscriber::fmt()
         .with_level(true)
@@ -86,11 +93,18 @@ async fn main() {
             let mut settings = Config::builder();
             if let Some(config) = config {
                 if !config.exists() {
-                    panic!("Config file does not exist")
+                    error!("Config file does not exist: {}", config.display());
+                    return ExitCode::FAILURE;
                 }
                 settings = settings.add_source(config::File::from(config));
             }
-            let settings = settings.build().expect("Failed to build settings");
+            let settings = match settings.build() {
+                Ok(settings) => settings,
+                Err(err) => {
+                    error!("Failed to build settings: {err}");
+                    return ExitCode::FAILURE;
+                }
+            };
             let settings = settings.try_deserialize::<Settings>().unwrap_or_default();
             let out_ext = settings.render.renderer.extension();
             if !overwrite {
@@ -122,12 +136,21 @@ async fn main() {
                 let debug_path = if cli.verbose > 2 {
                     let id = uuid::Uuid::new_v4();
                     let p = PathBuf::from(format!("debug/{}", id.to_string()));
-                    create_dir_all(&p).expect("Failed to create debug directory");
+                    if let Err(err) = create_dir_all(&p) {
+                        error!("Failed to create debug directory {}: {}", p.display(), err);
+                        continue;
+                    }
                     Some(p)
                 } else {
                     None
                 };
-                let exp = models.execute(img, &settings, debug_path).await.unwrap();
+                let exp = match models.execute(img, &settings, debug_path).await {
+                    Ok(exp) => exp,
+                    Err(err) => {
+                        error!("Failed to process image {}: {}", path.display(), err);
+                        continue;
+                    }
+                };
                 let exp = match exp {
                     Some(v) => v,
                     None => {
@@ -139,20 +162,58 @@ async fn main() {
                 if settings.render.renderer == Renderer::Html {
                     let (data, _) = HtmlRenderer::render(vec![exp], None, false);
                     if let Some(parent) = output.parent() {
-                        create_dir_all(parent).expect("Failed to create parent directory");
-                        html::copy_files(parent).expect("Failed to copy important js files");
+                        if let Err(err) = create_dir_all(parent) {
+                            error!(
+                                "Failed to create parent directory {}: {}",
+                                parent.display(),
+                                err
+                            );
+                            continue;
+                        }
+                        if let Err(err) = html::copy_files(parent) {
+                            error!(
+                                "Failed to copy html assets to {}: {}",
+                                parent.display(),
+                                err
+                            );
+                            continue;
+                        }
                     }
-                    File::create(output).unwrap().write_all(&data).unwrap();
+                    match File::create(&output).and_then(|mut file| file.write_all(&data)) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error!("Failed to write output file {}: {}", output.display(), err);
+                            continue;
+                        }
+                    }
                 } else {
                     let bin = exp.export();
                     if let Some(parent) = output.parent() {
-                        create_dir_all(parent).expect("Failed to create parent directory");
+                        if let Err(err) = create_dir_all(parent) {
+                            error!(
+                                "Failed to create parent directory {}: {}",
+                                parent.display(),
+                                err
+                            );
+                            continue;
+                        }
                     }
-                    File::create(output).unwrap().write_all(&bin).unwrap();
+                    match File::create(&output).and_then(|mut file| file.write_all(&bin)) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error!("Failed to write output file {}: {}", output.display(), err);
+                            continue;
+                        }
+                    }
                 }
             }
         }
-        cli::Commands::Api { host, port } => api::main(&host, port).await.unwrap(),
+        cli::Commands::Api { host, port } => {
+            if let Err(err) = api::main(&host, port).await {
+                error!("API server failed: {}", err);
+                return ExitCode::FAILURE;
+            }
+        }
         cli::Commands::Ui => {
             let native_options = eframe::NativeOptions {
                 viewport: egui::ViewportBuilder::default()
@@ -167,13 +228,16 @@ async fn main() {
                 // ),
                 ..Default::default()
             };
-            eframe::run_native(
+            if let Err(err) = eframe::run_native(
                 "Manga Image Translator",
                 native_options,
                 Box::new(|cc| Ok(Box::new(ui::MitApp::new(cc)))),
-            )
-            .expect("Failed to run egui");
-            return;
+            ) {
+                error!("Failed to run egui: {}", err);
+                return ExitCode::FAILURE;
+            }
         }
     }
+
+    ExitCode::SUCCESS
 }
