@@ -7,6 +7,20 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Cache apt packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-${{ runner.os }}-${{ hashFiles('.github/actions/setup-linux/action.yml') }}
+        restore-keys: |
+          apt-${{ runner.os }}-
+
+    - name: Fix apt cache permissions
+      shell: bash
+      run: sudo chown -R $(whoami) /var/cache/apt/archives /var/lib/apt/lists
+
     - name: Install dependencies
       shell: bash
       run: |
