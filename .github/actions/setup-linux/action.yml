@@ -30,3 +30,14 @@ runs:
         sudo dpkg -i cuda-keyring_1.1-1_all.deb
         sudo apt-get update
         sudo apt-get install -y cuda-toolkit-13-2 pkg-config libssl-dev libopencv-dev clang libclang-dev libfontconfig-dev
+
+    - name: Maximize build space
+      if: ${{ matrix.platform.name == 'linux-x86_64' }}
+      uses: easimon/maximize-build-space@v10
+      with:
+        root-reserve-mb: 16384
+        remove-dotnet: "true"
+        remove-android: "true"
+        remove-codeql: "true"
+        remove-docker-images: "true"
+        remove-haskell: "true"
