@@ -7,27 +7,23 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Maximize build space
+      uses: justinthelaw/maximize-github-runner-space@v0.9.0
+      with:
+        cleanup-profile: max
+        swapfile-size: 1G
+
     - name: Install dependencies
       shell: bash
       run: |
         sudo wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
         sudo dpkg -i cuda-keyring_1.1-1_all.deb
         sudo apt-get update
-        sudo apt-get install -y cuda-runtime-13-2 pkg-config libssl-dev libopencv-dev clang libclang-dev libfontconfig-dev
+        sudo apt-get install --no-install-recommends -y cuda-runtime-13-2 pkg-config libssl-dev libopencv-dev clang libclang-dev libfontconfig-dev
 
     - name: Clean APT cache
       shell: bash
       run: sudo rm -r /var/cache/apt/archives/*
-
-    - name: Maximize build space
-      uses: easimon/maximize-build-space@v10
-      with:
-        root-reserve-mb: 4096
-        remove-dotnet: "true"
-        remove-android: "true"
-        remove-codeql: "true"
-        remove-docker-images: "true"
-        remove-haskell: "true"
 
     - name: Check free space
       shell: bash
