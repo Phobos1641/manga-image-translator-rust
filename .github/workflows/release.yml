@@ -105,7 +105,7 @@ jobs:
           # linux-arm64 windows-x86_64 macos-arm64
           # macos-x86_64
           for target in linux-x86_64; do
-            if [[ "$target" == "windows-x86_64" ]]; then
+            if [[ "$target" == "windows"* ]]; then
               zip -r "release/manga-image-translator-$target.zip" "$target"/*
             else
               tar -C "$target" -czf "release/manga-image-translator-$target.tar.gz" .
@@ -114,9 +114,9 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
-        # wheels-*/rusty_manga_image_translator-*.whl
         with:
           files: |
             release/manga-image-translator-*
+            wheels-*/*.whl
           draft: false
           prerelease: false

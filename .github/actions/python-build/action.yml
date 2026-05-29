@@ -26,10 +26,12 @@ runs:
     - name: Install wheel package
       run: pip install wheel
       shell: bash
+
     - name: Install pefile
       shell: bash
       if: ${{ inputs.os == 'windows' }}
       run: pip install pefile
+
     - name: Bundle OpenCV only
       if: ${{ inputs.os == 'macos' }}
       shell: bash
@@ -44,6 +46,7 @@ runs:
         rm target/wheels/rusty_manga_image_translator-*.whl
         mv target/wheels/fixed/*.whl target/wheels/
         rmdir target/wheels/fixed
+
     - name: Write inject_dll.py script
       if: ${{ inputs.os != 'macos' }}
       shell: bash
