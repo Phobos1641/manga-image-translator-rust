@@ -19,11 +19,11 @@ jobs:
 
     steps:
       - name: Checkout files
-        if: matrix.platform.name == 'linux-x86_64'
+        if: matrix.platform.name == 'linux-x86_64' || matrix.platform.name == 'linux-arm64'
         uses: actions/checkout@v4
 
       - name: Setup Linux
-        if: matrix.platform.name == 'linux-x86_64'
+        if: matrix.platform.name == 'linux-x86_64' || matrix.platform.name == 'linux-arm64'
         uses: ./.github/actions/setup-linux
         with:
           runs-on: ${{ matrix.platform.runs-on }}

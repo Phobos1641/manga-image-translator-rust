@@ -28,3 +28,11 @@ runs:
     - name: Check free space
       shell: bash
       run: df -h
+
+    - name: Check swap space
+      shell: bash
+      run: swapon --show
+
+    - name: Check RAM
+      shell: bash
+      run: free -m
