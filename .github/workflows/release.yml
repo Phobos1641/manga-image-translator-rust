@@ -120,16 +120,3 @@ jobs:
             release/manga-image-translator-*
           draft: false
           prerelease: false
-
-      - name: PyPI Release
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.14
-
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          pip install --upgrade twine
-          find wheels-* -name "*.whl" -print0 | xargs -0 twine upload --skip-existing
