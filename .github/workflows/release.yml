@@ -23,24 +23,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        if: matrix.platform.name != 'linux-x86_64'
+        if: matrix.platform.name == 'linux-x86_64' || matrix.platform.name == 'linux-arm64'
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Checkout only .github files
-        if: matrix.platform.name == 'linux-x86_64'
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github
-          sparse-checkout-cone-mode: false
+
       - name: Setup Linux
         if: matrix.platform.name == 'linux-x86_64' || matrix.platform.name == 'linux-arm64'
         uses: ./.github/actions/setup-linux
         with:
           runs-on: ${{ matrix.platform.runs-on }}
+
       - name: Checkout code
-        if: matrix.platform.name == 'linux-x86_64'
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -64,7 +56,7 @@ jobs:
         if: matrix.platform.os != 'windows'
         uses: actions/setup-python@v5
         with:
-          python-version: 3.13
+          python-version: 3.14
 
       - name: Setup Python
         id: setup-python
@@ -97,6 +89,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v3
 
@@ -107,7 +102,9 @@ jobs:
         shell: bash
         run: |
           mkdir release
-          for target in linux-x86_64 linux-arm64 windows-x86_64 macos-arm64; do #macos-x86_64
+          # linux-arm64 windows-x86_64 macos-arm64
+          # macos-x86_64
+          for target in linux-x86_64; do
             if [[ "$target" == "windows-x86_64" ]]; then
               zip -r "release/manga-image-translator-$target.zip" "$target"/*
             else
@@ -123,14 +120,15 @@ jobs:
             release/manga-image-translator-*
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: PyPI Release
+        if: ${{ secrets.PYPI_PASSWORD }} != ''
         uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.14
+
       - name: Publish to PyPI
+        if: ${{ secrets.PYPI_PASSWORD }} != ''
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
